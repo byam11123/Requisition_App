@@ -2,6 +2,8 @@ package com.requisition.entity;
 
 import lombok.*;
 import jakarta.persistence.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -60,8 +62,7 @@ public class Requisition {
     private String materialDescription;
     private Integer quantity;
     @Column(precision = 15, scale = 2)
-        private BigDecimal amount;
-
+    private BigDecimal amount;
 
     // Purchase details
     private String poDetails;
@@ -79,7 +80,8 @@ public class Requisition {
     private String paymentUtrNo;
     private String paymentMode; // Instant/UPI/Account
     private LocalDateTime paymentDate;
-    private Double paymentAmount;
+    @Column(precision = 15, scale = 2)
+    private BigDecimal paymentAmount;
 
     // File upload URLs
     private String paymentPhotoUrl;

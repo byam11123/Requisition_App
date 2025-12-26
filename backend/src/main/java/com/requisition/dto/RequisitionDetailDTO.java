@@ -3,6 +3,7 @@ package com.requisition.dto;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -22,7 +23,7 @@ public class RequisitionDetailDTO {
     private String siteAddress;
     private String materialDescription;
     private Integer quantity;
-    private Double amount;
+    private BigDecimal amount;
 
     // Purchase details
     private String poDetails;

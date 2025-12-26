@@ -20,6 +20,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+import java.math.BigDecimal;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -67,7 +69,7 @@ public class RequisitionServiceTest {
         CreateRequisitionRequest request = new CreateRequisitionRequest();
         request.setRequisitionTypeId(1L);
         request.setDescription("Test Req");
-        request.setAmount(100.0);
+        request.setAmount(BigDecimal.valueOf(100.0));
         request.setPriority("NORMAL");
         request.setQuantity(1);
         request.setSiteAddress("Test Site");
@@ -89,7 +91,7 @@ public class RequisitionServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals("Test Req", result.getDescription());
-        assertEquals(100.0, result.getAmount());
+        assertEquals(BigDecimal.valueOf(100.0), result.getAmount());
         assertEquals("DRAFT", result.getStatus());
 
         verify(requisitionRepository, times(1)).save(any(Requisition.class));

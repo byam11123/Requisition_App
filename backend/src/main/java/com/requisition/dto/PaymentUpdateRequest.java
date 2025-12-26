@@ -2,6 +2,7 @@ package com.requisition.dto;
 
 import lombok.*;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -11,5 +12,5 @@ public class PaymentUpdateRequest {
     private String utrNo;
     private String paymentMode; // Instant/UPI/Account
     private LocalDateTime paymentDate;
-    private Double amount;
+    private BigDecimal amount;
 }

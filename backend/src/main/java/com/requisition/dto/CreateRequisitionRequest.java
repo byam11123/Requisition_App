@@ -1,6 +1,7 @@
 package com.requisition.dto;
 
 import lombok.*;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -10,7 +11,7 @@ public class CreateRequisitionRequest {
     private String siteAddress;
     private String materialDescription;
     private Integer quantity;
-    private Double amount;
+    private BigDecimal amount;
     private String priority; // LOW, NORMAL, HIGH, URGENT
     private String poDetails;
     private String requiredFor;

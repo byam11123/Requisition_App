@@ -75,6 +75,7 @@ public class DashboardService {
                 detail.setSiteAddress(req.getSiteAddress());
                 detail.setMaterialDescription(req.getMaterialDescription());
                 detail.setQuantity(req.getQuantity());
+                detail.setQuantity(req.getQuantity());
                 detail.setAmount(req.getAmount());
 
                 detail.setPoDetails(req.getPoDetails());
@@ -124,7 +125,9 @@ public class DashboardService {
                 card.setRequestId(req.getRequestId());
                 card.setType(req.getType().getName());
                 card.setDescription(req.getDescription());
+                card.setDescription(req.getDescription());
                 card.setAmount(req.getAmount());
+                card.setStatus(req.getStatus().toString());
                 card.setStatus(req.getStatus().toString());
                 card.setApprovalStatus(req.getApprovalStatus().toString());
                 card.setPaymentStatus(req.getPaymentStatus().toString());

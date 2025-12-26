@@ -2,6 +2,7 @@ package com.requisition.dto;
 
 import lombok.*;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -11,7 +12,7 @@ public class RequisitionCardDTO {
     private String requestId;
     private String type;
     private String description;
-    private Double amount;
+    private BigDecimal amount;
     private String status;
     private String approvalStatus;
     private String paymentStatus;
