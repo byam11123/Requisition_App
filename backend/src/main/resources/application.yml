@@ -4,14 +4,14 @@ spring:
 
   # Database
   datasource:
-    url: jdbc:postgresql://localhost:5432/requisition_db
-    username: admin
-    password: password
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update # For dev; use 'validate' in prod with Flyway
+      ddl-auto: validate # For dev; use 'validate' in prod with Flyway
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
