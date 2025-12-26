@@ -59,7 +59,9 @@ public class Requisition {
     private String siteAddress;
     private String materialDescription;
     private Integer quantity;
-    private Double amount;
+    @Column(precision = 15, scale = 2)
+        private BigDecimal amount;
+
 
     // Purchase details
     private String poDetails;
