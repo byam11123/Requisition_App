@@ -10,7 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@CrossOrigin(origins = "http://localhost:3000")
+// @CrossOrigin handled by SecurityConfig
 public class AuthController {
 
     @Autowired
