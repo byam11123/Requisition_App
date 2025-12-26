@@ -38,3 +38,7 @@ jwt:
   secret: ${JWT_SECRET:your-secret-key-change-in-production-must-be-very-long-secure-key}
   expiration: 86400000  # 24 hours
   refresh-expiration: 604800000  # 7 days
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
