@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: requisition-app
+
+  # Database
+  datasource:
+    url: jdbc:postgresql://localhost:5432/requisition_db
+    username: admin
+    password: password
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update # For dev; use 'validate' in prod with Flyway
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  # Flyway
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+logging:
+  level:
+    root: INFO
+    com.requisition: DEBUG
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-change-in-production-must-be-very-long-secure-key}
+  expiration: 86400000  # 24 hours
+  refresh-expiration: 604800000  # 7 days
