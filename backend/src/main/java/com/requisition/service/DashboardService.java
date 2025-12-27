@@ -95,7 +95,8 @@ public class DashboardService {
                                         req.getCreatedBy().getDesignation(),
                                         req.getCreatedBy().getDepartment(),
                                         req.getCreatedBy().getOrganization().getId(),
-                                        req.getCreatedBy().getOrganization().getName()));
+                                        req.getCreatedBy().getOrganization().getName(),
+                                        req.getCreatedBy().isActive()));
                 }
 
                 if (req.getDispatchedBy() != null) {
@@ -107,7 +108,8 @@ public class DashboardService {
                                         req.getDispatchedBy().getDesignation(),
                                         req.getDispatchedBy().getDepartment(),
                                         req.getDispatchedBy().getOrganization().getId(),
-                                        req.getDispatchedBy().getOrganization().getName()));
+                                        req.getDispatchedBy().getOrganization().getName(),
+                                        req.getDispatchedBy().isActive()));
                 }
 
                 detail.setCreatedAt(req.getCreatedAt());

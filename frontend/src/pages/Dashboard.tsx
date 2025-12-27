@@ -5,7 +5,8 @@ import { dashboardAPI } from '../services/api';
 import {
     Container, Grid, Paper, Typography, Button,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Chip, IconButton, Box, Card, CardContent, Stack, Divider, useTheme, useMediaQuery
+    Chip, IconButton, Box, Card, CardContent, Stack, Divider, useTheme, useMediaQuery,
+    TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem, TablePagination
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -17,7 +18,9 @@ import {
     CheckCircle,
     AttachMoney,
     ReceiptLong,
-    ChevronRight
+    ChevronRight,
+    Search as SearchIcon,
+    FilterList as FilterListIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -56,7 +59,13 @@ const Dashboard: React.FC = () => {
 
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [requisitions, setRequisitions] = useState<RequisitionCard[]>([]);
+    const [filteredRequisitions, setFilteredRequisitions] = useState<RequisitionCard[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [approvalFilter, setApprovalFilter] = useState<string>('ALL');
+    const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
 
     const DEFAULT_TYPE_ID = 1;
 
@@ -73,13 +82,45 @@ const Dashboard: React.FC = () => {
             ]);
 
             if (statsRes.data.success) setStats(statsRes.data.data);
-            if (reqRes.data.success) setRequisitions(reqRes.data.data);
+            if (reqRes.data.success) {
+                setRequisitions(reqRes.data.data);
+                setFilteredRequisitions(reqRes.data.data);
+            }
         } catch (error) {
             console.error("Failed to load dashboard data", error);
         } finally {
             setLoading(false);
         }
     };
+
+    // Filter requisitions based on search and filters
+    useEffect(() => {
+        let filtered = requisitions;
+
+        // Search filter
+        if (searchQuery) {
+            filtered = filtered.filter(req =>
+                req.requestId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                req.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                req.siteAddress?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                req.vendorName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                req.createdByName.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        // Approval status filter
+        if (approvalFilter !== 'ALL') {
+            filtered = filtered.filter(req => req.approvalStatus === approvalFilter);
+        }
+
+        // Priority filter
+        if (priorityFilter !== 'ALL') {
+            filtered = filtered.filter(req => req.priority === priorityFilter);
+        }
+
+        setFilteredRequisitions(filtered);
+        setPage(0); // Reset to first page when filters change
+    }, [searchQuery, approvalFilter, priorityFilter, requisitions]);
 
     const handleDispatch = async (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
@@ -196,12 +237,70 @@ const Dashboard: React.FC = () => {
                 </Grid>
             )}
 
+            {/* Search and Filter Bar */}
+            <Paper sx={{ p: 2, mb: 3 }}>
+                <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} md={5}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            placeholder="Search by ID, description, site, vendor, or creator..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon color="action" />
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Approval Status</InputLabel>
+                            <Select
+                                value={approvalFilter}
+                                label="Approval Status"
+                                onChange={(e) => setApprovalFilter(e.target.value)}
+                            >
+                                <MenuItem value="ALL">All Statuses</MenuItem>
+                                <MenuItem value="PENDING">Pending</MenuItem>
+                                <MenuItem value="APPROVED">Approved</MenuItem>
+                                <MenuItem value="REJECTED">Rejected</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Priority</InputLabel>
+                            <Select
+                                value={priorityFilter}
+                                label="Priority"
+                                onChange={(e) => setPriorityFilter(e.target.value)}
+                            >
+                                <MenuItem value="ALL">All Priorities</MenuItem>
+                                <MenuItem value="URGENT">Urgent</MenuItem>
+                                <MenuItem value="HIGH">High</MenuItem>
+                                <MenuItem value="NORMAL">Normal</MenuItem>
+                                <MenuItem value="LOW">Low</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12} md={1}>
+                        <Typography variant="body2" color="text.secondary" align="center">
+                            {filteredRequisitions.length} results
+                        </Typography>
+                    </Grid>
+                </Grid>
+            </Paper>
+
             <Typography variant="h6" fontWeight="bold" mb={2}>Recent Requisitions</Typography>
 
             {/* Mobile List View */}
             <Box sx={{ display: { xs: 'block', md: 'none' } }}>
                 <Stack spacing={2}>
-                    {requisitions.map((row) => (
+                    {filteredRequisitions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => (
                         <Card
                             key={row.id}
                             onClick={() => navigate(`/requisitions/${row.id}`)}
@@ -246,10 +345,21 @@ const Dashboard: React.FC = () => {
                             </CardContent>
                         </Card>
                     ))}
-                    {requisitions.length === 0 && !loading && (
+                    {filteredRequisitions.length === 0 && !loading && (
                         <Typography align="center" color="text.secondary">No requisitions found</Typography>
                     )}
                 </Stack>
+                {filteredRequisitions.length > 0 && (
+                    <TablePagination
+                        component="div"
+                        count={filteredRequisitions.length}
+                        page={page}
+                        onPageChange={(e, newPage) => setPage(newPage)}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+                        rowsPerPageOptions={[5, 10, 25, 50]}
+                    />
+                )}
             </Box>
 
             {/* Desktop Table View */}
@@ -270,7 +380,7 @@ const Dashboard: React.FC = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {requisitions.map((row) => (
+                            {filteredRequisitions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => (
                                 <TableRow key={row.id} hover>
                                     <TableCell component="th" scope="row" sx={{ fontWeight: '600', color: 'primary.main' }}>
                                         {row.requestId}
@@ -374,7 +484,7 @@ const Dashboard: React.FC = () => {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {requisitions.length === 0 && !loading && (
+                            {filteredRequisitions.length === 0 && !loading && (
                                 <TableRow>
                                     <TableCell colSpan={9} align="center">No requisitions found</TableCell>
                                 </TableRow>
@@ -382,6 +492,17 @@ const Dashboard: React.FC = () => {
                         </TableBody>
                     </Table>
                 </TableContainer>
+                {filteredRequisitions.length > 0 && (
+                    <TablePagination
+                        component="div"
+                        count={filteredRequisitions.length}
+                        page={page}
+                        onPageChange={(e, newPage) => setPage(newPage)}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+                        rowsPerPageOptions={[5, 10, 25, 50]}
+                    />
+                )}
             </Box>
         </Container>
     );

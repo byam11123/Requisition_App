@@ -14,4 +14,5 @@ public class UserDTO {
     private String department;
     private Long organizationId;
     private String organizationName;
+    private Boolean isActive;
 }

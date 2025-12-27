@@ -343,7 +343,8 @@ public class RequisitionService {
                 req.getCreatedBy().getDesignation(),
                 req.getCreatedBy().getDepartment(),
                 req.getCreatedBy().getOrganization() != null ? req.getCreatedBy().getOrganization().getId() : null,
-                req.getCreatedBy().getOrganization() != null ? req.getCreatedBy().getOrganization().getName() : null));
+                req.getCreatedBy().getOrganization() != null ? req.getCreatedBy().getOrganization().getName() : null,
+                req.getCreatedBy().isActive()));
         dto.setCreatedByName(req.getCreatedBy().getFullName());
         dto.setCreatedAt(req.getCreatedAt());
         dto.setUpdatedAt(req.getUpdatedAt());

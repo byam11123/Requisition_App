@@ -7,6 +7,7 @@ import RegisterOrganization from './pages/RegisterOrganization';
 import UserManagement from './pages/UserManagement';
 import ViewRequisition from './pages/ViewRequisition';
 import EditRequisition from './pages/EditRequisition';
+import Profile from './pages/Profile';
 import { useSelector } from 'react-redux';
 import { RootState } from './store/store';
 
@@ -64,6 +65,14 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <EditRequisition />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="profile"
+                        element={
+                            <ProtectedRoute>
+                                <Profile />
                             </ProtectedRoute>
                         }
                     />

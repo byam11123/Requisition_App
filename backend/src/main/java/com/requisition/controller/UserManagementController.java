@@ -43,9 +43,47 @@ public class UserManagementController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(
             @PathVariable Long id,
-            @RequestBody UpdateUserRequest request) {
-        UserDTO updatedUser = userManagementService.updateUser(id, request);
+            @RequestBody UpdateUserRequest request,
+            HttpServletRequest httpRequest) {
+        Long adminId = extractUserId(httpRequest);
+        UserDTO updatedUser = userManagementService.updateUser(adminId, id, request);
         return ResponseEntity.ok(new ApiResponse<>(true, "User updated successfully", updatedUser));
+    }
+
+    @PostMapping("/{id}/deactivate")
+    public ResponseEntity<ApiResponse<UserDTO>> deactivateUser(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        Long adminId = extractUserId(httpRequest);
+        UserDTO user = userManagementService.toggleUserStatus(adminId, id, false);
+        return ResponseEntity.ok(new ApiResponse<>(true, "User deactivated successfully", user));
+    }
+
+    @PostMapping("/{id}/activate")
+    public ResponseEntity<ApiResponse<UserDTO>> activateUser(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        Long adminId = extractUserId(httpRequest);
+        UserDTO user = userManagementService.toggleUserStatus(adminId, id, true);
+        return ResponseEntity.ok(new ApiResponse<>(true, "User activated successfully", user));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        Long adminId = extractUserId(httpRequest);
+        userManagementService.deleteUser(adminId, id);
+        return ResponseEntity.ok(new ApiResponse<>(true, "User deleted successfully", null));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @RequestBody com.requisition.dto.ChangePasswordRequest request,
+            HttpServletRequest httpRequest) {
+        Long userId = extractUserId(httpRequest);
+        userManagementService.changePassword(userId, request);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Password changed successfully", null));
     }
 
     private Long extractUserId(HttpServletRequest request) {

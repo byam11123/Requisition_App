@@ -69,6 +69,15 @@ export const userManagementAPI = {
     createUser: (data: any) => api.post('/users/create', data),
     getAllUsers: () => api.get('/users'),
     updateUser: (id: number, data: any) => api.put(`/users/${id}`, data),
+    deactivateUser: (id: number) => api.post(`/users/${id}/deactivate`),
+    activateUser: (id: number) => api.post(`/users/${id}/activate`),
+    deleteUser: (id: number) => api.delete(`/users/${id}`),
+    changePassword: (data: { currentPassword: string; newPassword: string }) => api.post('/users/change-password', data),
+};
+
+export const organizationAPI = {
+    getOrganization: () => api.get('/organization'),
+    updateOrganization: (data: any) => api.put('/organization', data),
 };
 
 export default api;

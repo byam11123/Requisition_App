@@ -57,6 +57,27 @@ public class OrganizationService {
         return convertToDTO(org);
     }
 
+    public OrganizationDTO updateOrganization(Long orgId, OrganizationDTO request) {
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
+
+        if (request.getName() != null) {
+            org.setName(request.getName());
+        }
+        if (request.getContactEmail() != null) {
+            org.setContactEmail(request.getContactEmail());
+        }
+        if (request.getContactPhone() != null) {
+            org.setContactPhone(request.getContactPhone());
+        }
+        if (request.getAddress() != null) {
+            org.setAddress(request.getAddress());
+        }
+
+        organizationRepository.save(org);
+        return convertToDTO(org);
+    }
+
     private OrganizationDTO convertToDTO(Organization org) {
         return new OrganizationDTO(
                 org.getId(),

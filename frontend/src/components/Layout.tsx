@@ -95,7 +95,7 @@ export default function Layout() {
                                 </Typography>
                             </Box>
                             <Divider />
-                            <MenuItem onClick={handleCloseUserMenu}>
+                            <MenuItem onClick={() => { handleCloseUserMenu(); navigate('/profile'); }}>
                                 <ListItemIcon>
                                     <AccountCircleIcon fontSize="small" />
                                 </ListItemIcon>

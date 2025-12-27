@@ -31,6 +31,22 @@ public class UserManagementService {
             throw new RuntimeException("Only admins can create users");
         }
 
+        // Validate email format
+        if (!isValidEmail(request.getEmail())) {
+            throw new RuntimeException("Invalid email format");
+        }
+
+        // Check for duplicate email
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already exists");
+        }
+
+        // Validate password complexity
+        if (!isValidPassword(request.getPassword())) {
+            throw new RuntimeException(
+                    "Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character");
+        }
+
         User newUser = new User();
         newUser.setOrganization(admin.getOrganization());
         newUser.setEmail(request.getEmail());
@@ -56,9 +72,22 @@ public class UserManagementService {
                 .collect(Collectors.toList());
     }
 
-    public UserDTO updateUser(Long userId, UpdateUserRequest request) {
+    public UserDTO updateUser(Long adminUserId, Long userId, UpdateUserRequest request) {
+        // Verify admin privileges
+        User admin = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+        if (admin.getRole() != User.UserRole.ADMIN) {
+            throw new RuntimeException("Only admins can update users");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Verify both users are in the same organization
+        if (!user.getOrganization().getId().equals(admin.getOrganization().getId())) {
+            throw new RuntimeException("Cannot update users from different organizations");
+        }
 
         if (request.getFullName() != null)
             user.setFullName(request.getFullName());
@@ -75,6 +104,104 @@ public class UserManagementService {
         return convertToDTO(user);
     }
 
+    public UserDTO toggleUserStatus(Long adminUserId, Long userId, boolean isActive) {
+        // Verify admin privileges
+        User admin = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+        if (admin.getRole() != User.UserRole.ADMIN) {
+            throw new RuntimeException("Only admins can change user status");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Verify both users are in the same organization
+        if (!user.getOrganization().getId().equals(admin.getOrganization().getId())) {
+            throw new RuntimeException("Cannot modify users from different organizations");
+        }
+
+        // Prevent admin from deactivating themselves
+        if (userId.equals(adminUserId)) {
+            throw new RuntimeException("Cannot deactivate your own account");
+        }
+
+        user.setActive(isActive);
+        userRepository.save(user);
+        return convertToDTO(user);
+    }
+
+    public void deleteUser(Long adminUserId, Long userId) {
+        // Verify admin privileges
+        User admin = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+        if (admin.getRole() != User.UserRole.ADMIN) {
+            throw new RuntimeException("Only admins can delete users");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Verify both users are in the same organization
+        if (!user.getOrganization().getId().equals(admin.getOrganization().getId())) {
+            throw new RuntimeException("Cannot delete users from different organizations");
+        }
+
+        // Prevent admin from deleting themselves
+        if (userId.equals(adminUserId)) {
+            throw new RuntimeException("Cannot delete your own account");
+        }
+
+        userRepository.delete(user);
+    }
+
+    public void changePassword(Long userId, com.requisition.dto.ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Verify current password
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+
+        // Validate new password complexity
+        if (!isValidPassword(request.getNewPassword())) {
+            throw new RuntimeException(
+                    "New password must be at least 8 characters long and contain uppercase, lowercase, number, and special character");
+        }
+
+        // Ensure new password is different from current
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("New password must be different from current password");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    private boolean isValidEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return false;
+        }
+        String emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
+        return email.matches(emailRegex);
+    }
+
+    private boolean isValidPassword(String password) {
+        if (password == null || password.length() < 8) {
+            return false;
+        }
+        // Check for at least one uppercase, one lowercase, one digit, and one special
+        // character
+        boolean hasUpper = password.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = password.chars().anyMatch(Character::isLowerCase);
+        boolean hasDigit = password.chars().anyMatch(Character::isDigit);
+        boolean hasSpecial = password.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;:,.<>?".indexOf(ch) >= 0);
+
+        return hasUpper && hasLower && hasDigit && hasSpecial;
+    }
+
     private UserDTO convertToDTO(User user) {
         return new UserDTO(
                 user.getId(),
@@ -84,6 +211,7 @@ public class UserManagementService {
                 user.getDesignation(),
                 user.getDepartment(),
                 user.getOrganization().getId(),
-                user.getOrganization().getName());
+                user.getOrganization().getName(),
+                user.isActive());
     }
 }

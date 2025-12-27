@@ -29,6 +29,11 @@ public class AuthService {
             throw new RuntimeException("Invalid credentials");
         }
 
+        // Check if user account is active
+        if (!user.isActive()) {
+            throw new RuntimeException("Account has been deactivated. Please contact your administrator.");
+        }
+
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
 
@@ -47,6 +52,7 @@ public class AuthService {
                 user.getDesignation(),
                 user.getDepartment(),
                 user.getOrganization() != null ? user.getOrganization().getId() : null,
-                user.getOrganization() != null ? user.getOrganization().getName() : null);
+                user.getOrganization() != null ? user.getOrganization().getName() : null,
+                user.isActive());
     }
 }
