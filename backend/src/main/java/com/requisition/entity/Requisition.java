@@ -87,6 +87,7 @@ public class Requisition {
     private String paymentPhotoUrl;
     private String materialPhotoUrl;
     private String billPhotoUrl;
+    private String vendorPaymentDetailsUrl;
 
     // Workflow tracking
     @Column(columnDefinition = "TEXT")

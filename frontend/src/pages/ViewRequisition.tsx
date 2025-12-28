@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import imageCompression from 'browser-image-compression';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import {
@@ -122,16 +123,54 @@ const ViewRequisition: React.FC = () => {
         }
     };
 
-    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'material' | 'bill') => {
+
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'material' | 'bill' | 'vendor_payment') => {
         if (!requisition || !event.target.files?.[0]) return;
+
+        let fileToUpload = event.target.files[0];
+
         try {
             setLoading(true);
-            await requisitionAPI.uploadFile(requisition.id, event.target.files[0], type);
+
+            // Compress image if it is an image file
+            if (fileToUpload.type.startsWith('image/')) {
+                const options = {
+                    maxSizeMB: 1, // Target size in MB
+                    maxWidthOrHeight: 1920, // Max width/height
+                    useWebWorker: true,
+                    initialQuality: 0.8 // Good quality
+                };
+
+                try {
+                    console.log(`Original file size: ${fileToUpload.size / 1024 / 1024} MB`);
+                    const compressedFile = await imageCompression(fileToUpload, options);
+                    console.log(`Compressed file size: ${compressedFile.size / 1024 / 1024} MB`);
+
+                    // Create a new file from the blob to preserve the name and type
+                    fileToUpload = new File([compressedFile], fileToUpload.name, {
+                        type: compressedFile.type,
+                        lastModified: Date.now(),
+                    });
+                } catch (compressionError) {
+                    console.error("Compression failed, using original file:", compressionError);
+                    // Fallback to original file
+                }
+            }
+
+            const response = await requisitionAPI.uploadFile(requisition.id, fileToUpload, type);
+            console.log('Upload response:', response.data);
             await loadRequisition();
+            const typeLabel = type === 'material' ? 'Material proof' :
+                type === 'bill' ? 'Bill/Invoice' : 'Vendor Payment Details';
+            alert(`${typeLabel} uploaded successfully!`);
         } catch (error) {
             console.error('Upload failed', error);
+            alert(`Upload failed: ${error}`);
         } finally {
             setLoading(false);
+            // Reset file input
+            event.target.value = '';
         }
     };
 
@@ -148,9 +187,18 @@ const ViewRequisition: React.FC = () => {
     if (!requisition) return <Typography>Not Found</Typography>;
 
     const activeStep = getActiveStep(requisition);
-    const canApprove = user?.role === 'MANAGER' || user?.role === 'ADMIN';
-    const canPay = (user?.role === 'ACCOUNTANT' || user?.role === 'ADMIN') && requisition.approvalStatus === 'APPROVED';
-    const canUploadBill = canApprove || canPay;
+    const canApprove = (user?.role === 'MANAGER' || user?.role === 'ADMIN') && requisition.approvalStatus === 'PENDING';
+    const canPay = (user?.role === 'ACCOUNTANT' || user?.role === 'ADMIN') && requisition.approvalStatus === 'APPROVED' && requisition.paymentStatus !== 'DONE';
+
+    // Action Visibility Flags
+    const showApprove = canApprove;
+    const showPay = canPay;
+    const showDispatch = user?.role === 'PURCHASER' && requisition.approvalStatus === 'APPROVED' && requisition.dispatchStatus === 'NOT_DISPATCHED';
+    const showUploadBill = user?.role === 'PURCHASER' && requisition.approvalStatus !== 'APPROVED' && requisition.approvalStatus !== 'REJECTED';
+    const showUploadMaterial = user?.role === 'PURCHASER' && requisition.approvalStatus !== 'APPROVED' && requisition.approvalStatus !== 'REJECTED';
+    const showUploadVendorPayment = user?.role === 'PURCHASER' && requisition.paymentStatus !== 'DONE' && requisition.approvalStatus !== 'REJECTED';
+
+    const hasAnyAction = showApprove || showPay || showDispatch || showUploadBill || showUploadMaterial || showUploadVendorPayment;
 
     return (
         <Container maxWidth="lg" sx={{ mt: 2, mb: 4 }}>
@@ -226,6 +274,7 @@ const ViewRequisition: React.FC = () => {
                         <Grid container spacing={2}>
                             {[
                                 { title: 'Bill/Invoice', url: requisition.billPhotoUrl, type: 'bill' },
+                                { title: 'Vendor Payment Details', url: requisition.vendorPaymentDetailsUrl, type: 'vendor_payment' },
                                 { title: 'Payment Proof', url: requisition.paymentPhotoUrl, type: 'payment' },
                                 { title: 'Material', url: requisition.materialPhotoUrl, type: 'material' }
                             ].map((item: any) => (
@@ -252,36 +301,35 @@ const ViewRequisition: React.FC = () => {
 
                 {/* Sidebar: Status & Actions */}
                 <Grid item xs={12} md={4}>
-                    {/* Actions Card */}
-                    <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }} elevation={0} variant="outlined">
-                        <Typography variant="h6" gutterBottom>Actions</Typography>
-                        <Stack spacing={2}>
-                            {canApprove && requisition.approvalStatus === 'PENDING' && (
-                                <Button
-                                    fullWidth
-                                    variant="contained"
-                                    color="secondary"
-                                    onClick={() => setApprovalModalOpen(true)}
-                                >
-                                    Process Approval
-                                </Button>
-                            )}
-                            {canPay && requisition.paymentStatus !== 'DONE' && (
-                                <Button
-                                    fullWidth
-                                    variant="contained"
-                                    color="success"
-                                    startIcon={<Payment />}
-                                    onClick={() => setPaymentModalOpen(true)}
-                                >
-                                    Update Payment
-                                </Button>
-                            )}
+                    {/* Actions Card - Only visible if there are actions to perform */}
+                    {hasAnyAction && (
+                        <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }} elevation={0} variant="outlined">
+                            <Typography variant="h6" gutterBottom>Actions</Typography>
+                            <Stack spacing={2}>
+                                {showApprove && (
+                                    <Button
+                                        fullWidth
+                                        variant="contained"
+                                        color="secondary"
+                                        onClick={() => setApprovalModalOpen(true)}
+                                    >
+                                        Process Approval
+                                    </Button>
+                                )}
+                                {showPay && (
+                                    <Button
+                                        fullWidth
+                                        variant="contained"
+                                        color="success"
+                                        startIcon={<Payment />}
+                                        onClick={() => setPaymentModalOpen(true)}
+                                    >
+                                        Update Payment
+                                    </Button>
+                                )}
 
-                            {/* Dispatch Action - Available to Purchaser only if Approved */}
-                            {user?.role === 'PURCHASER' &&
-                                requisition.approvalStatus === 'APPROVED' &&
-                                requisition.dispatchStatus === 'NOT_DISPATCHED' && (
+                                {/* Dispatch Action */}
+                                {showDispatch && (
                                     <Button
                                         fullWidth
                                         variant="contained"
@@ -292,38 +340,49 @@ const ViewRequisition: React.FC = () => {
                                     </Button>
                                 )}
 
-                            {/* Bill Upload - Available to Purchaser, Manager, Accountant, Admin */}
-                            {(user?.role === 'PURCHASER' || user?.role === 'MANAGER' || user?.role === 'ACCOUNTANT' || user?.role === 'ADMIN') && (
-                                <Button
-                                    fullWidth
-                                    variant="outlined"
-                                    component="label"
-                                    startIcon={<CloudUpload />}
-                                >
-                                    Upload Bill/Invoice
-                                    <input type="file" hidden onChange={(e) => handleFileUpload(e, 'bill')} />
-                                </Button>
-                            )}
+                                {/* Bill Upload */}
+                                {showUploadBill && (
+                                    <Button
+                                        fullWidth
+                                        variant="outlined"
+                                        component="label"
+                                        startIcon={<CloudUpload />}
+                                    >
+                                        Upload Bill/Invoice
+                                        <input type="file" hidden onChange={(e) => handleFileUpload(e, 'bill')} />
+                                    </Button>
+                                )}
 
-                            {/* Material Upload - Available to Purchaser, Manager, Admin */}
-                            {(user?.role === 'PURCHASER' || user?.role === 'MANAGER' || user?.role === 'ADMIN') && (
-                                <Button
-                                    fullWidth
-                                    variant="outlined"
-                                    component="label"
-                                    startIcon={<CloudUpload />}
-                                    sx={{ mt: 1 }}
-                                >
-                                    Upload Material Proof
-                                    <input type="file" hidden onChange={(e) => handleFileUpload(e, 'material')} />
-                                </Button>
-                            )}
-                        </Stack>
-                        {/* If no actions available */}
-                        {!canApprove && !canPay && user?.role === 'ACCOUNTANT' && (
-                            <Typography variant="body2" color="text.secondary" align="center">No actions available</Typography>
-                        )}
-                    </Paper>
+                                {/* Material Upload */}
+                                {showUploadMaterial && (
+                                    <Button
+                                        fullWidth
+                                        variant="outlined"
+                                        component="label"
+                                        startIcon={<CloudUpload />}
+                                        sx={{ mt: 1 }}
+                                    >
+                                        Upload Material Proof
+                                        <input type="file" hidden onChange={(e) => handleFileUpload(e, 'material')} />
+                                    </Button>
+                                )}
+
+                                {/* Vendor Payment Details Upload */}
+                                {showUploadVendorPayment && (
+                                    <Button
+                                        fullWidth
+                                        variant="outlined"
+                                        component="label"
+                                        startIcon={<CloudUpload />}
+                                    >
+                                        Upload Vendor Payment Details (QR/Bank)
+                                        <input type="file" hidden onChange={(e) => handleFileUpload(e, 'vendor_payment')} />
+                                    </Button>
+                                )}
+                            </Stack>
+                        </Paper>
+                    )}
+
 
                     {/* Timeline */}
                     <Paper sx={{ p: 3, borderRadius: 3 }} elevation={0} variant="outlined">
@@ -368,9 +427,9 @@ const ViewRequisition: React.FC = () => {
                                 )
                             })}
                         </Stepper>
-                    </Paper>
-                </Grid>
-            </Grid>
+                    </Paper >
+                </Grid >
+            </Grid >
 
             <ApprovalModal
                 open={approvalModalOpen}
@@ -386,7 +445,7 @@ const ViewRequisition: React.FC = () => {
                 loading={modalLoading}
                 requisitionAmount={requisition.amount}
             />
-        </Container>
+        </Container >
     );
 };
 

@@ -256,6 +256,9 @@ public class RequisitionService {
             case "bill":
                 req.setBillPhotoUrl(fileUrl);
                 break;
+            case "vendor_payment":
+                req.setVendorPaymentDetailsUrl(fileUrl);
+                break;
         }
 
         requisitionRepository.save(req);
@@ -331,6 +334,7 @@ public class RequisitionService {
         dto.setPaymentPhotoUrl(req.getPaymentPhotoUrl());
         dto.setMaterialPhotoUrl(req.getMaterialPhotoUrl());
         dto.setBillPhotoUrl(req.getBillPhotoUrl());
+        dto.setVendorPaymentDetailsUrl(req.getVendorPaymentDetailsUrl());
         dto.setApprovalNotes(req.getApprovalNotes());
         dto.setMaterialReceived(req.getMaterialReceived());
         dto.setReceiptNotes(req.getReceiptNotes());

@@ -34,6 +34,7 @@ public class RequisitionDTO {
     private String paymentPhotoUrl;
     private String materialPhotoUrl;
     private String billPhotoUrl;
+    private String vendorPaymentDetailsUrl;
     private String approvalNotes;
     private Boolean materialReceived;
     private String receiptNotes;

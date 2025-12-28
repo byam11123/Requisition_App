@@ -52,7 +52,7 @@ export const requisitionAPI = {
     confirmMaterialReceipt: (id: number, data: { materialReceived: boolean; receiptNotes: string }) =>
         api.post(`/requisitions/${id}/material-receipt`, data),
 
-    uploadFile: (id: number, file: File, type: 'payment' | 'material' | 'bill') => {
+    uploadFile: (id: number, file: File, type: 'payment' | 'material' | 'bill' | 'vendor_payment') => {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('type', type);
