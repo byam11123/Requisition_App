@@ -94,4 +94,14 @@ public class UserManagementController {
         }
         throw new RuntimeException("Unauthorized");
     }
+
+    @PostMapping("/profile-photo")
+    public ResponseEntity<ApiResponse<UserDTO>> uploadProfilePhoto(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            HttpServletRequest httpRequest) {
+        Long userId = extractUserId(httpRequest);
+        UserDTO updatedUser = userManagementService.uploadProfilePhoto(userId, file);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Profile photo uploaded successfully", updatedUser));
+    }
+
 }

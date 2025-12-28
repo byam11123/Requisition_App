@@ -66,7 +66,11 @@ export default function Layout() {
 
                     <Box sx={{ flexGrow: 0 }}>
                         <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                            <Avatar sx={{ bgcolor: 'secondary.main' }}>
+                            <Avatar
+                                sx={{ bgcolor: 'secondary.main' }}
+                                src={user.profilePhotoUrl || undefined}
+                                alt={user.fullName}
+                            >
                                 {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
                             </Avatar>
                         </IconButton>

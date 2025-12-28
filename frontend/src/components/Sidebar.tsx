@@ -53,7 +53,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
             {/* User Profile Summary */}
             <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, bgcolor: 'background.paper' }}>
-                <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.light' }}>
+                <Avatar
+                    sx={{ width: 40, height: 40, bgcolor: 'primary.light' }}
+                    src={user?.profilePhotoUrl || undefined}
+                    alt={user?.fullName}
+                >
                     {user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
                 </Avatar>
                 <Box sx={{ overflow: 'hidden' }}>

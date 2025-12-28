@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
-import { dashboardAPI } from '../services/api';
+import { dashboardAPI, requisitionAPI } from '../services/api';
 import {
     Container, Grid, Paper, Typography, Button,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -20,7 +20,8 @@ import {
     ReceiptLong,
     ChevronRight,
     Search as SearchIcon,
-    FilterList as FilterListIcon
+    FilterList as FilterListIcon,
+    Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -66,6 +67,28 @@ const Dashboard: React.FC = () => {
     const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [exporting, setExporting] = useState(false);
+
+    const handleExport = async () => {
+        try {
+            setExporting(true);
+            const response = await requisitionAPI.exportRequisitions();
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'Requisition_Report.xlsx'); // or extract from header
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error("Export failed", error);
+            alert("Failed to export Excel file. Please try again.");
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const DEFAULT_TYPE_ID = 1;
 
@@ -207,16 +230,26 @@ const Dashboard: React.FC = () => {
                 <Typography variant="h5" fontWeight="bold">
                     Dashboard
                 </Typography>
-                {user?.role === 'PURCHASER' && (
+                <Stack direction="row" spacing={2}>
                     <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => navigate('/create')}
-                        size={isMobile ? "medium" : "large"}
+                        variant="outlined"
+                        startIcon={<DownloadIcon />}
+                        onClick={handleExport}
+                        disabled={exporting}
                     >
-                        New Requisition
+                        {exporting ? 'Exporting...' : 'Export Excel'}
                     </Button>
-                )}
+                    {user?.role === 'PURCHASER' && (
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => navigate('/create')}
+                            size={isMobile ? "medium" : "large"}
+                        >
+                            New Requisition
+                        </Button>
+                    )}
+                </Stack>
             </Box>
 
             {/* Stats Cards */}

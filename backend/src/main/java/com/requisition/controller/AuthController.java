@@ -26,15 +26,14 @@ public class AuthController {
             @RequestBody RegisterOrganizationRequest request) {
         OrganizationDTO organization = organizationService.registerOrganization(request);
         return ResponseEntity.ok(
-                new ApiResponse<>(true, "Organization registered successfully", organization,
-                        java.time.LocalDateTime.now()));
+                new ApiResponse<>(true, "Organization registered successfully", organization));
     }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(
-                new ApiResponse<>(true, "Login successful", response, java.time.LocalDateTime.now()));
+                new ApiResponse<>(true, "Login successful", response));
     }
 
     @PostMapping("/refresh")
@@ -45,10 +44,10 @@ public class AuthController {
             String newToken = jwtUtil.generateToken(userId, ""); // Email usually needed, simplified for now
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "Token refreshed",
-                            java.util.Map.of("token", newToken), java.time.LocalDateTime.now()));
+                            java.util.Map.of("token", newToken)));
         }
         return ResponseEntity.status(401)
-                .body(new ApiResponse<>(false, "Invalid token", null, java.time.LocalDateTime.now()));
+                .body(new ApiResponse<>(false, "Invalid token", null));
     }
 
     private String extractToken(HttpServletRequest request) {

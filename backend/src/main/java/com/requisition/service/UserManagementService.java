@@ -210,8 +210,25 @@ public class UserManagementService {
                 user.getRole().toString(),
                 user.getDesignation(),
                 user.getDepartment(),
+                user.getProfilePhotoUrl(),
                 user.getOrganization().getId(),
                 user.getOrganization().getName(),
                 user.isActive());
+    }
+
+    @Autowired
+    private FileStorageService fileStorageService;
+
+    public UserDTO uploadProfilePhoto(Long userId, org.springframework.web.multipart.MultipartFile file) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String fileName = fileStorageService.storeFile(file);
+        String fileUrl = "/api/v1/uploads/" + fileName;
+
+        user.setProfilePhotoUrl(fileUrl);
+        User updatedUser = userRepository.save(user);
+
+        return convertToDTO(updatedUser);
     }
 }

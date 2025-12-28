@@ -86,9 +86,27 @@ public class OrganizationService {
                 org.getContactPhone(),
                 org.getAddress(),
                 org.getSubscriptionPlan(),
+                org.getLogoUrl(),
                 org.isActive(),
                 org.getCreatedAt(),
                 org.getUsers() != null ? org.getUsers().size() : 0,
                 org.getRequisitions() != null ? org.getRequisitions().size() : 0);
+    }
+
+    @Autowired
+    private FileStorageService fileStorageService;
+
+    public OrganizationDTO uploadOrganizationLogo(Long organizationId,
+            org.springframework.web.multipart.MultipartFile file) {
+        Organization org = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
+
+        String fileName = fileStorageService.storeFile(file);
+        String fileUrl = "/api/v1/uploads/" + fileName;
+
+        org.setLogoUrl(fileUrl);
+        Organization updatedOrg = organizationRepository.save(org);
+
+        return convertToDTO(updatedOrg);
     }
 }

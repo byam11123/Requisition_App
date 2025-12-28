@@ -30,6 +30,7 @@ public class Organization {
     private boolean isActive = true;
 
     private String subscriptionPlan = "FREE"; // FREE, BASIC, PREMIUM
+    private String logoUrl;
 
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();

@@ -59,4 +59,20 @@ public class OrganizationController {
         }
         throw new RuntimeException("No valid token found");
     }
+
+    @PostMapping("/logo")
+    public ResponseEntity<ApiResponse<OrganizationDTO>> uploadLogo(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            HttpServletRequest httpRequest) {
+        Long userId = extractUserId(httpRequest);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() != User.UserRole.ADMIN) {
+            throw new RuntimeException("Only admins can upload organization logo");
+        }
+
+        OrganizationDTO updatedOrg = organizationService.uploadOrganizationLogo(user.getOrganization().getId(), file);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Organization logo uploaded successfully", updatedOrg));
+    }
 }

@@ -62,7 +62,9 @@ export const requisitionAPI = {
             },
         });
     },
-    dispatch: (id: number) => api.post(`/dashboard/requisitions/${id}/dispatch`)
+    dispatch: (id: number) => api.post(`/dashboard/requisitions/${id}/dispatch`),
+
+    exportRequisitions: () => api.get('/requisitions/export', { responseType: 'blob' }),
 };
 
 export const userManagementAPI = {
@@ -73,11 +75,25 @@ export const userManagementAPI = {
     activateUser: (id: number) => api.post(`/users/${id}/activate`),
     deleteUser: (id: number) => api.delete(`/users/${id}`),
     changePassword: (data: { currentPassword: string; newPassword: string }) => api.post('/users/change-password', data),
+    uploadProfilePhoto: (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return api.post('/users/profile-photo', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+    },
 };
 
 export const organizationAPI = {
     getOrganization: () => api.get('/organization'),
     updateOrganization: (data: any) => api.put('/organization', data),
+    uploadLogo: (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return api.post('/organization/logo', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+    },
 };
 
 export default api;

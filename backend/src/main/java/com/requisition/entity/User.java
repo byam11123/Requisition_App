@@ -23,6 +23,7 @@ public class User {
 
     private String fullName;
     private String passwordHash;
+    private String profilePhotoUrl;
 
     @Enumerated(EnumType.STRING)
     private UserRole role; // ADMIN, PURCHASER, MANAGER, ACCOUNTANT

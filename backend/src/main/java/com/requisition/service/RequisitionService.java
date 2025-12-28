@@ -74,6 +74,10 @@ public class RequisitionService {
                 .toList();
     }
 
+    public List<Requisition> getAllRequisitionsEntities() {
+        return requisitionRepository.findAll();
+    }
+
     public RequisitionDTO getRequisitionById(Long id) {
         Requisition req = requisitionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
@@ -346,6 +350,7 @@ public class RequisitionService {
                 req.getCreatedBy().getRole().toString(),
                 req.getCreatedBy().getDesignation(),
                 req.getCreatedBy().getDepartment(),
+                req.getCreatedBy().getProfilePhotoUrl(),
                 req.getCreatedBy().getOrganization() != null ? req.getCreatedBy().getOrganization().getId() : null,
                 req.getCreatedBy().getOrganization() != null ? req.getCreatedBy().getOrganization().getName() : null,
                 req.getCreatedBy().isActive()));

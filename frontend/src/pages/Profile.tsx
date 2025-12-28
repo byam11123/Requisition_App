@@ -6,7 +6,7 @@ import { updateUserProfile } from '../store/authSlice';
 import {
     Container, Paper, Typography, Box, Grid, TextField, Button,
     Alert, Divider, Card, CardContent, Dialog, DialogTitle,
-    DialogContent, DialogActions
+    DialogContent, DialogActions, Avatar, IconButton, Badge
 } from '@mui/material';
 import {
     Person as PersonIcon,
@@ -14,7 +14,9 @@ import {
     Work as WorkIcon,
     Business as BusinessIcon,
     VpnKey as VpnKeyIcon,
-    Edit as EditIcon
+    Edit as EditIcon,
+    CloudUpload as CloudUploadIcon,
+    PhotoCamera as PhotoCameraIcon
 } from '@mui/icons-material';
 import { RootState } from '../store/store';
 
@@ -135,11 +137,55 @@ const Profile: React.FC = () => {
         }
     };
 
+    const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            const file = event.target.files[0];
+            setLoading(true);
+            setError('');
+            try {
+                const response = await userManagementAPI.uploadProfilePhoto(file);
+                if (response.data.success) {
+                    // Update redux state with new photo URL
+                    // Assuming updateUserProfile updates the whole user object or merging is handled
+                    const updatedUser = response.data.data;
+                    dispatch(updateUserProfile({
+                        ...user, // Keep existing fields
+                        profilePhotoUrl: updatedUser.profilePhotoUrl
+                    }));
+                    setSuccess('Profile photo uploaded successfully!');
+                }
+            } catch (err: any) {
+                setError(err.response?.data?.message || 'Failed to upload profile photo');
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            const file = event.target.files[0];
+            setLoading(true);
+            setError('');
+            try {
+                const response = await organizationAPI.uploadLogo(file);
+                if (response.data.success) {
+                    setOrganization(response.data.data);
+                    setSuccess('Organization logo uploaded successfully!');
+                }
+            } catch (err: any) {
+                setError(err.response?.data?.message || 'Failed to upload organization logo');
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
     const handleOpenEdit = () => {
         if (user) {
             setValue('fullName', user.fullName);
-            setValue('designation', (user as any).designation || '');
-            setValue('department', (user as any).department || '');
+            setValue('designation', user.designation || '');
+            setValue('department', user.department || '');
             setEditOpen(true);
         }
     };
@@ -174,25 +220,57 @@ const Profile: React.FC = () => {
             {/* Personal Information Card */}
             <Card sx={{ mb: 3 }}>
                 <CardContent>
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                        <Typography variant="h6">Personal Information</Typography>
-                        <Box display="flex" gap={1}>
-                            {isAdmin && (
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<EditIcon />}
-                                    onClick={handleOpenEdit}
-                                >
-                                    Edit Profile
-                                </Button>
-                            )}
-                            <Button
-                                variant="outlined"
-                                startIcon={<VpnKeyIcon />}
-                                onClick={() => setPasswordOpen(true)}
+                    <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} alignItems="center" gap={3} mb={3}>
+                        <Box position="relative">
+                            <Badge
+                                overlap="circular"
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                badgeContent={
+                                    <IconButton
+                                        color="primary"
+                                        aria-label="upload picture"
+                                        component="label"
+                                        sx={{ bgcolor: 'background.paper', boxShadow: 1, '&:hover': { bgcolor: 'background.paper' } }}
+                                        size="small"
+                                    >
+                                        <input hidden accept="image/*" type="file" onChange={handleProfilePhotoUpload} />
+                                        <PhotoCameraIcon fontSize="small" />
+                                    </IconButton>
+                                }
                             >
-                                Change Password
-                            </Button>
+                                <Avatar
+                                    alt={user.fullName}
+                                    src={user.profilePhotoUrl || undefined}
+                                    sx={{ width: 100, height: 100, fontSize: '2.5rem' }}
+                                >
+                                    {user.fullName.charAt(0)}
+                                </Avatar>
+                            </Badge>
+                        </Box>
+                        <Box flexGrow={1} textAlign={{ xs: 'center', md: 'left' }}>
+                            <Box display="flex" justifyContent={{ xs: 'center', md: 'space-between' }} alignItems="center" flexWrap="wrap" gap={2}>
+                                <Typography variant="h6">Personal Information</Typography>
+                                <Box display="flex" gap={1}>
+                                    {isAdmin && (
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<EditIcon />}
+                                            onClick={handleOpenEdit}
+                                            size="small"
+                                        >
+                                            Edit Profile
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<VpnKeyIcon />}
+                                        onClick={() => setPasswordOpen(true)}
+                                        size="small"
+                                    >
+                                        Change Password
+                                    </Button>
+                                </Box>
+                            </Box>
                         </Box>
                     </Box>
 
@@ -243,7 +321,7 @@ const Profile: React.FC = () => {
                                 </Typography>
                             </Box>
                             <Typography variant="body1" fontWeight="medium">
-                                {(user as any).department || '-'}
+                                {user.department || '-'}
                             </Typography>
                         </Grid>
 
@@ -255,7 +333,7 @@ const Profile: React.FC = () => {
                                 </Typography>
                             </Box>
                             <Typography variant="body1" fontWeight="medium">
-                                {(user as any).designation || '-'}
+                                {user.designation || '-'}
                             </Typography>
                         </Grid>
 
@@ -267,7 +345,7 @@ const Profile: React.FC = () => {
                                 </Typography>
                             </Box>
                             <Typography variant="body1" fontWeight="medium">
-                                {(user as any).organizationName || '-'}
+                                {user.organizationName || '-'}
                             </Typography>
                         </Grid>
                     </Grid>
@@ -278,15 +356,48 @@ const Profile: React.FC = () => {
             {isAdmin && organization && (
                 <Card sx={{ mb: 3 }}>
                     <CardContent>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                            <Typography variant="h6">Organization Settings</Typography>
-                            <Button
-                                variant="outlined"
-                                startIcon={<EditIcon />}
-                                onClick={handleOpenOrgEdit}
-                            >
-                                Edit Organization
-                            </Button>
+                        <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} alignItems="center" gap={3} mb={3}>
+                            <Box position="relative">
+                                <Badge
+                                    overlap="circular"
+                                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                    badgeContent={
+                                        <IconButton
+                                            color="primary"
+                                            aria-label="upload logo"
+                                            component="label"
+                                            sx={{ bgcolor: 'background.paper', boxShadow: 1, '&:hover': { bgcolor: 'background.paper' } }}
+                                            size="small"
+                                        >
+                                            <input hidden accept="image/*" type="file" onChange={handleLogoUpload} />
+                                            <PhotoCameraIcon fontSize="small" />
+                                        </IconButton>
+                                    }
+                                >
+                                    <Avatar
+                                        variant="rounded"
+                                        alt={organization.name}
+                                        src={organization.logoUrl || undefined}
+                                        sx={{ width: 100, height: 100, fontSize: '2.5rem' }}
+                                    >
+                                        <BusinessIcon fontSize="large" />
+                                    </Avatar>
+                                </Badge>
+                            </Box>
+
+                            <Box flexGrow={1} textAlign={{ xs: 'center', md: 'left' }}>
+                                <Box display="flex" justifyContent={{ xs: 'center', md: 'space-between' }} alignItems="center" flexWrap="wrap" gap={2}>
+                                    <Typography variant="h6">Organization Settings</Typography>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<EditIcon />}
+                                        onClick={handleOpenOrgEdit}
+                                        size="small"
+                                    >
+                                        Edit Organization
+                                    </Button>
+                                </Box>
+                            </Box>
                         </Box>
 
                         <Divider sx={{ mb: 3 }} />

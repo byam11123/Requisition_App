@@ -5,6 +5,10 @@ interface User {
     email: string;
     fullName: string;
     role: string;
+    profilePhotoUrl?: string;
+    designation?: string;
+    department?: string;
+    organizationName?: string;
 }
 
 interface AuthState {

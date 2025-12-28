@@ -94,6 +94,7 @@ public class DashboardService {
                                         req.getCreatedBy().getRole().toString(),
                                         req.getCreatedBy().getDesignation(),
                                         req.getCreatedBy().getDepartment(),
+                                        req.getCreatedBy().getProfilePhotoUrl(),
                                         req.getCreatedBy().getOrganization().getId(),
                                         req.getCreatedBy().getOrganization().getName(),
                                         req.getCreatedBy().isActive()));
@@ -107,6 +108,7 @@ public class DashboardService {
                                         req.getDispatchedBy().getRole().toString(),
                                         req.getDispatchedBy().getDesignation(),
                                         req.getDispatchedBy().getDepartment(),
+                                        req.getDispatchedBy().getProfilePhotoUrl(),
                                         req.getDispatchedBy().getOrganization().getId(),
                                         req.getDispatchedBy().getOrganization().getName(),
                                         req.getDispatchedBy().isActive()));

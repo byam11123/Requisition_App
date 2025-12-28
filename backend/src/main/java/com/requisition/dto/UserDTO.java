@@ -12,6 +12,7 @@ public class UserDTO {
     private String role;
     private String designation;
     private String department;
+    private String profilePhotoUrl;
     private Long organizationId;
     private String organizationName;
     private Boolean isActive;

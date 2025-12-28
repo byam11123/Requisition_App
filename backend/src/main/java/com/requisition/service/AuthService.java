@@ -51,6 +51,7 @@ public class AuthService {
                 user.getRole().toString(),
                 user.getDesignation(),
                 user.getDepartment(),
+                user.getProfilePhotoUrl(),
                 user.getOrganization() != null ? user.getOrganization().getId() : null,
                 user.getOrganization() != null ? user.getOrganization().getName() : null,
                 user.isActive());
