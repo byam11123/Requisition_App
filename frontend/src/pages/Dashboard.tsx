@@ -6,7 +6,8 @@ import {
     Container, Grid, Paper, Typography, Button,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Chip, IconButton, Box, Card, CardContent, Stack, Divider, useTheme, useMediaQuery,
-    TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem, TablePagination
+    TextField, InputAdornment, FormControl, InputLabel, Select, MenuItem, TablePagination,
+    Checkbox
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -33,6 +34,8 @@ interface DashboardStats {
     rejectedCount: number;
     totalCount: number;
 }
+
+type StatFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'TOPAY';
 
 interface RequisitionCard {
     id: number;
@@ -68,6 +71,9 @@ const Dashboard: React.FC = () => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [exporting, setExporting] = useState(false);
+    const [activeStatFilter, setActiveStatFilter] = useState<StatFilter>('ALL');
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [deleting, setDeleting] = useState(false);
 
     const handleExport = async () => {
         try {
@@ -120,6 +126,16 @@ const Dashboard: React.FC = () => {
     useEffect(() => {
         let filtered = requisitions;
 
+        // Quick filters from stat cards
+        if (activeStatFilter === 'PENDING') {
+            filtered = filtered.filter(req => req.approvalStatus === 'PENDING');
+        } else if (activeStatFilter === 'APPROVED') {
+            filtered = filtered.filter(req => req.approvalStatus === 'APPROVED');
+        } else if (activeStatFilter === 'TOPAY') {
+            // Approved but payment not completed
+            filtered = filtered.filter(req => req.approvalStatus === 'APPROVED' && req.paymentStatus !== 'DONE');
+        }
+
         // Search filter
         if (searchQuery) {
             filtered = filtered.filter(req =>
@@ -143,7 +159,8 @@ const Dashboard: React.FC = () => {
 
         setFilteredRequisitions(filtered);
         setPage(0); // Reset to first page when filters change
-    }, [searchQuery, approvalFilter, priorityFilter, requisitions]);
+        setSelectedIds([]); // Clear selections when filter set changes
+    }, [searchQuery, approvalFilter, priorityFilter, requisitions, activeStatFilter]);
 
     const handleDispatch = async (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
@@ -160,17 +177,31 @@ const Dashboard: React.FC = () => {
         e.stopPropagation();
         if (window.confirm('Are you sure you want to delete this requisition?')) {
             try {
-                // Ideally use an API client method
-                await fetch(`${import.meta.env.VITE_API_URL}/requisitions/${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    },
-                });
+                await requisitionAPI.delete(id);
+                setSelectedIds(prev => prev.filter(x => x !== id));
                 loadDashboardData();
             } catch (error) {
                 console.error("Delete failed", error);
             }
+        }
+    };
+
+    // Bulk delete for admin (typically for COMPLETED requisitions)
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected requisitions?`)) {
+            return;
+        }
+        try {
+            setDeleting(true);
+            await Promise.all(selectedIds.map(id => requisitionAPI.delete(id)));
+            setSelectedIds([]);
+            loadDashboardData();
+        } catch (error) {
+            console.error('Bulk delete failed', error);
+            alert('Failed to delete some requisitions. Please try again.');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -194,8 +225,20 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    const StatCard = ({ title, count, icon, color }: any) => (
-        <Card sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
+    const StatCard = ({ title, count, icon, color, selected = false, onClick }: any) => (
+        <Card
+            onClick={onClick}
+            sx={{
+                height: '100%',
+                position: 'relative',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                borderWidth: 2,
+                borderStyle: 'solid',
+                borderColor: selected ? `${color}.main` : 'transparent',
+                boxShadow: selected ? 4 : 1,
+            }}
+        >
             <Box sx={{
                 position: 'absolute',
                 top: -10,
@@ -224,6 +267,26 @@ const Dashboard: React.FC = () => {
         </Card>
     );
 
+    // Visible rows for current page (used for header checkbox state)
+    const paginatedRequisitions = filteredRequisitions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+    const visibleIds = paginatedRequisitions.map(r => r.id);
+    const allSelectedVisible = visibleIds.length > 0 && visibleIds.every(id => selectedIds.includes(id));
+    const someSelectedVisible = visibleIds.some(id => selectedIds.includes(id));
+
+    const toggleRowSelection = (id: number) => {
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
+
+    const toggleSelectAllVisible = () => {
+        if (allSelectedVisible) {
+            // Unselect all visible
+            setSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)));
+        } else {
+            // Select all visible (merge with existing)
+            setSelectedIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+        }
+    };
+
     return (
         <Container maxWidth="xl" sx={{ mt: 2, mb: 4 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
@@ -231,6 +294,17 @@ const Dashboard: React.FC = () => {
                     Dashboard
                 </Typography>
                 <Stack direction="row" spacing={2}>
+                    {user?.role === 'ADMIN' && selectedIds.length > 0 && (
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<DeleteIcon />}
+                            onClick={handleBulkDelete}
+                            disabled={deleting}
+                        >
+                            {deleting ? 'Deleting...' : `Delete Selected (${selectedIds.length})`}
+                        </Button>
+                    )}
                     <Button
                         variant="outlined"
                         startIcon={<DownloadIcon />}
@@ -252,20 +326,61 @@ const Dashboard: React.FC = () => {
                 </Stack>
             </Box>
 
-            {/* Stats Cards */}
+            {/* Stats Cards (clickable filters) */}
             {stats && (
                 <Grid container spacing={2} mb={4}>
                     <Grid item xs={6} sm={6} md={3}>
-                        <StatCard title="Pending" count={stats.pendingCount} icon={<PendingActions />} color="warning" />
+                        <StatCard
+                            title="Pending"
+                            count={stats.pendingCount}
+                            icon={<PendingActions />}
+                            color="warning"
+                            selected={activeStatFilter === 'PENDING'}
+                            onClick={() => {
+                                setActiveStatFilter(prev => prev === 'PENDING' ? 'ALL' : 'PENDING');
+                                setApprovalFilter('PENDING');
+                            }}
+                        />
                     </Grid>
                     <Grid item xs={6} sm={6} md={3}>
-                        <StatCard title="Approved" count={stats.approvedCount} icon={<CheckCircle />} color="success" />
+                        <StatCard
+                            title="Approved"
+                            count={stats.approvedCount}
+                            icon={<CheckCircle />}
+                            color="success"
+                            selected={activeStatFilter === 'APPROVED'}
+                            onClick={() => {
+                                setActiveStatFilter(prev => prev === 'APPROVED' ? 'ALL' : 'APPROVED');
+                                setApprovalFilter('APPROVED');
+                            }}
+                        />
                     </Grid>
                     <Grid item xs={6} sm={6} md={3}>
-                        <StatCard title="To Pay" count={stats.approvedCount - stats.paidCount} icon={<AttachMoney />} color="info" />
+                        <StatCard
+                            title="To Pay"
+                            count={stats.approvedCount - stats.paidCount}
+                            icon={<AttachMoney />}
+                            color="info"
+                            selected={activeStatFilter === 'TOPAY'}
+                            onClick={() => {
+                                setActiveStatFilter(prev => prev === 'TOPAY' ? 'ALL' : 'TOPAY');
+                                // For "To Pay" we show approved but not fully paid; keep dropdown on ALL
+                                setApprovalFilter('ALL');
+                            }}
+                        />
                     </Grid>
                     <Grid item xs={6} sm={6} md={3}>
-                        <StatCard title="Total" count={stats.totalCount} icon={<ReceiptLong />} color="secondary" />
+                        <StatCard
+                            title="Total"
+                            count={stats.totalCount}
+                            icon={<ReceiptLong />}
+                            color="secondary"
+                            selected={activeStatFilter === 'ALL'}
+                            onClick={() => {
+                                setActiveStatFilter('ALL');
+                                setApprovalFilter('ALL');
+                            }}
+                        />
                     </Grid>
                 </Grid>
             )}
@@ -363,17 +478,25 @@ const Dashboard: React.FC = () => {
                                 <Divider sx={{ my: 1 }} />
                                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                                     <Typography variant="h6" color="primary">₹{row.amount?.toLocaleString()}</Typography>
-                                    <Stack direction="row">
-                                        {/* Edit Action: Manager (if not PAID) OR Purchaser (if PENDING) */}
-                                        {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
-                                            (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
-                                            (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
+                                        <Stack direction="row" spacing={0.5}>
+                                            {/* Edit Action: Manager (if not PAID) OR Purchaser (if PENDING) OR Admin (if not PAID) */}
+                                            {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
+                                                (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
+                                                (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
                                                 <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(`/edit/${row.id}`); }}>
                                                     <EditIcon fontSize="small" />
                                                 </IconButton>
                                             )}
-                                        <ChevronRight color="action" />
-                                    </Stack>
+                                            {/* Delete Action: same rules as desktop */}
+                                            {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
+                                                (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
+                                                (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
+                                                <IconButton size="small" color="error" onClick={(e) => handleDelete(e, row.id)}>
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            )}
+                                            <ChevronRight color="action" />
+                                        </Stack>
                                 </Stack>
                             </CardContent>
                         </Card>
@@ -397,10 +520,20 @@ const Dashboard: React.FC = () => {
 
             {/* Desktop Table View */}
             <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                     <Table sx={{ minWidth: 650 }} aria-label="requisitions table">
                         <TableHead>
                             <TableRow sx={{ bgcolor: 'background.default' }}>
+                                {user?.role === 'ADMIN' && (
+                                    <TableCell padding="checkbox">
+                                        <Checkbox
+                                            color="primary"
+                                            indeterminate={someSelectedVisible && !allSelectedVisible}
+                                            checked={allSelectedVisible}
+                                            onChange={toggleSelectAllVisible}
+                                        />
+                                    </TableCell>
+                                )}
                                 <TableCell sx={{ fontWeight: 'bold' }}>Request ID</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Priority</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Item & Site</TableCell>
@@ -413,11 +546,26 @@ const Dashboard: React.FC = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {filteredRequisitions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => (
-                                <TableRow key={row.id} hover>
-                                    <TableCell component="th" scope="row" sx={{ fontWeight: '600', color: 'primary.main' }}>
-                                        {row.requestId}
-                                    </TableCell>
+                            {paginatedRequisitions.map((row) => {
+                                const isCompleted = row.status === 'COMPLETED';
+                                const rowSelected = selectedIds.includes(row.id);
+                                const canAdminSelect = user?.role === 'ADMIN' && isCompleted;
+
+                                return (
+                                    <TableRow key={row.id} hover>
+                                        {user?.role === 'ADMIN' && (
+                                            <TableCell padding="checkbox">
+                                                <Checkbox
+                                                    color="primary"
+                                                    disabled={!canAdminSelect}
+                                                    checked={rowSelected}
+                                                    onChange={() => toggleRowSelection(row.id)}
+                                                />
+                                            </TableCell>
+                                        )}
+                                        <TableCell component="th" scope="row" sx={{ fontWeight: '600', color: 'primary.main' }}>
+                                            {row.requestId}
+                                        </TableCell>
                                     <TableCell>
                                         <Chip
                                             label={row.priority || 'NORMAL'}
@@ -516,7 +664,8 @@ const Dashboard: React.FC = () => {
                                             )}
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            );
+                            })}
                             {filteredRequisitions.length === 0 && !loading && (
                                 <TableRow>
                                     <TableCell colSpan={9} align="center">No requisitions found</TableCell>

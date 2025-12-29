@@ -23,22 +23,15 @@ interface ApprovalModalProps {
 const ApprovalModal: React.FC<ApprovalModalProps> = ({ open, onClose, onSubmit, loading }) => {
     const [status, setStatus] = useState('APPROVED');
     const [notes, setNotes] = useState('');
-    const [error, setError] = useState('');
 
     const handleSubmit = () => {
-        if (!notes) {
-            setError('Please provide notes/description for your decision');
-            return;
-        }
-        onSubmit(status, notes);
+        onSubmit(status, notes.trim());
     };
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>Process Approval</DialogTitle>
             <DialogContent>
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
                 <FormControl fullWidth margin="normal">
                     <InputLabel>Decision</InputLabel>
                     <Select
@@ -60,11 +53,7 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({ open, onClose, onSubmit, 
                     rows={4}
                     margin="normal"
                     value={notes}
-                    onChange={(e) => {
-                        setNotes(e.target.value);
-                        setError('');
-                    }}
-                    required
+                    onChange={(e) => setNotes(e.target.value)}
                 />
             </DialogContent>
             <DialogActions>

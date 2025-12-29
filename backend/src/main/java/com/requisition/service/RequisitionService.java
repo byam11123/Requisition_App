@@ -128,17 +128,25 @@ public class RequisitionService {
         Requisition req = requisitionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
 
-        // Only allow deletion if status is DRAFT
-        if (req.getStatus() != Requisition.RequisitionStatus.DRAFT) {
-            throw new RuntimeException("Can only delete requisitions in DRAFT status");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Verify user owns this requisition or is admin
-        if (!req.getCreatedBy().getId().equals(userId)) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            if (user.getRole() != User.UserRole.ADMIN) {
+        boolean isAdmin = user.getRole() == User.UserRole.ADMIN;
+        boolean isOwner = req.getCreatedBy() != null && req.getCreatedBy().getId().equals(userId);
+
+        if (isAdmin) {
+            // Admin can delete DRAFT or COMPLETED requisitions
+            if (req.getStatus() != Requisition.RequisitionStatus.DRAFT
+                    && req.getStatus() != Requisition.RequisitionStatus.COMPLETED) {
+                throw new RuntimeException("Admin can only delete DRAFT or COMPLETED requisitions");
+            }
+        } else {
+            // Non-admin: only delete own DRAFT requisitions
+            if (!isOwner) {
                 throw new RuntimeException("Unauthorized to delete this requisition");
+            }
+            if (req.getStatus() != Requisition.RequisitionStatus.DRAFT) {
+                throw new RuntimeException("Can only delete requisitions in DRAFT status");
             }
         }
 
