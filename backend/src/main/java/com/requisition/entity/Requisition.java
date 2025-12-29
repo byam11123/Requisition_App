@@ -96,10 +96,18 @@ public class Requisition {
     @Column(columnDefinition = "TEXT")
     private String receiptNotes;
 
-    // Dispatch tracking
+    // Dispatch & workflow actors
     @ManyToOne
     @JoinColumn(name = "dispatched_by")
     private User dispatchedBy;
+
+    @ManyToOne
+    @JoinColumn(name = "approved_by")
+    private User approvedBy;
+
+    @ManyToOne
+    @JoinColumn(name = "paid_by")
+    private User paidBy;
 
     private LocalDateTime dispatchedAt;
 

@@ -42,6 +42,9 @@ public class RequisitionDTO {
     private String data;
     private UserDTO createdBy;
     private String createdByName;
+    private String approvedByName;
+    private String paidByName;
+    private String dispatchedByName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime approvedAt;

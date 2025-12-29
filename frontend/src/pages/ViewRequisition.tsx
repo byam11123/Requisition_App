@@ -32,6 +32,9 @@ interface RequisitionDetail {
     indentNo: string;
     priority: string;
     createdByName: string;
+    approvedByName?: string;
+    paidByName?: string;
+    dispatchedByName?: string;
     createdAt: string;
     paymentUtrNo?: string;
     paymentMode?: string;
@@ -174,13 +177,13 @@ const ViewRequisition: React.FC = () => {
         }
     };
 
-    // Calculate Active Step
+    // Calculate Active Step (0-based index for MUI Stepper)
     const getActiveStep = (req: RequisitionDetail) => {
-        if (req.dispatchStatus === 'DISPATCHED') return 4;
-        if (req.paymentStatus === 'DONE') return 3;
-        if (req.approvalStatus === 'APPROVED') return 2;
-        if (req.approvalStatus === 'REJECTED') return 1; // Special case handling needed ideally
-        return 1;
+        if (req.dispatchStatus === 'DISPATCHED') return 3; // Submitted, Approved, Paid, Dispatched
+        if (req.paymentStatus === 'DONE') return 2;       // Submitted, Approved, Paid
+        if (req.approvalStatus === 'APPROVED') return 1;  // Submitted, Approved
+        if (req.approvalStatus === 'REJECTED') return 1;  // Treat Rejected as stopping at Approved step
+        return 0;                                         // Only Submitted
     };
 
     if (loading) return <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>;
@@ -401,28 +404,52 @@ const ViewRequisition: React.FC = () => {
 
                                 if (index === 0 && requisition.createdAt) {
                                     dateStr = formatDate(requisition.createdAt);
+                                    extraInfo = requisition.createdByName ? `By ${requisition.createdByName}` : '';
                                 } else if (index === 1 && requisition.approvedAt) {
                                     dateStr = formatDate(requisition.approvedAt);
-                                    extraInfo = requisition.approvalNotes ? `Note: ${requisition.approvalNotes}` : '';
+                                    const parts: string[] = [];
+                                    if (requisition.approvedByName) {
+                                        parts.push(`By ${requisition.approvedByName}`);
+                                    }
+                                    if (requisition.approvalNotes) {
+                                        parts.push(`Note: ${requisition.approvalNotes}`);
+                                    }
+                                    extraInfo = parts.join(' • ');
                                 } else if (index === 2 && requisition.paidAt) {
                                     dateStr = formatDate(requisition.paidAt);
-                                    extraInfo = requisition.paymentUtrNo ? `UTR: ${requisition.paymentUtrNo}` : '';
+                                    const parts: string[] = [];
+                                    if (requisition.paidByName) {
+                                        parts.push(`By ${requisition.paidByName}`);
+                                    }
+                                    if (requisition.paymentUtrNo) {
+                                        parts.push(`UTR: ${requisition.paymentUtrNo}`);
+                                    }
+                                    extraInfo = parts.join(' • ');
                                 } else if (index === 3 && requisition.dispatchedAt) {
                                     dateStr = formatDate(requisition.dispatchedAt);
+                                    extraInfo = requisition.dispatchedByName ? `By ${requisition.dispatchedByName}` : '';
                                 }
+
+                                const hasMeta = dateStr || extraInfo;
 
                                 return (
                                     <Step key={label}>
                                         <StepLabel
-                                            optional={dateStr ? <Typography variant="caption">{dateStr}</Typography> : null}
+                                            optional={hasMeta ? (
+                                                <Box display="flex" flexDirection="column">
+                                                    {dateStr && (
+                                                        <Typography variant="caption">{dateStr}</Typography>
+                                                    )}
+                                                    {extraInfo && (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {extraInfo}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            ) : null}
                                         >
                                             {label}
                                         </StepLabel>
-                                        <StepContent>
-                                            <Typography variant="caption" color="text.secondary">
-                                                {extraInfo}
-                                            </Typography>
-                                        </StepContent>
                                     </Step>
                                 )
                             })}

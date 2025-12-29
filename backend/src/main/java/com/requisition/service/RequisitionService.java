@@ -166,6 +166,7 @@ public class RequisitionService {
         if (status == Requisition.ApprovalStatus.APPROVED) {
             req.setStatus(Requisition.RequisitionStatus.APPROVED);
             req.setApprovedAt(LocalDateTime.now());
+            req.setApprovedBy(user);
         } else if (status == Requisition.ApprovalStatus.REJECTED) {
             req.setStatus(Requisition.RequisitionStatus.REJECTED);
         } else if (status == Requisition.ApprovalStatus.HOLD) {
@@ -215,6 +216,7 @@ public class RequisitionService {
 
         if (req.getPaymentStatus() == Requisition.PaymentStatus.DONE) {
             req.setPaidAt(LocalDateTime.now());
+            req.setPaidBy(user);
             // Optionally set status to PAID if you track it at top level
             // req.setStatus(Requisition.RequisitionStatus.PAID);
         }
@@ -355,6 +357,9 @@ public class RequisitionService {
                 req.getCreatedBy().getOrganization() != null ? req.getCreatedBy().getOrganization().getName() : null,
                 req.getCreatedBy().isActive()));
         dto.setCreatedByName(req.getCreatedBy().getFullName());
+        dto.setApprovedByName(req.getApprovedBy() != null ? req.getApprovedBy().getFullName() : null);
+        dto.setPaidByName(req.getPaidBy() != null ? req.getPaidBy().getFullName() : null);
+        dto.setDispatchedByName(req.getDispatchedBy() != null ? req.getDispatchedBy().getFullName() : null);
         dto.setCreatedAt(req.getCreatedAt());
         dto.setUpdatedAt(req.getUpdatedAt());
         dto.setApprovedAt(req.getApprovedAt());

@@ -99,7 +99,6 @@ public class DashboardService {
                                         req.getCreatedBy().getOrganization().getName(),
                                         req.getCreatedBy().isActive()));
                 }
-
                 if (req.getDispatchedBy() != null) {
                         detail.setDispatchedBy(new UserDTO(
                                         req.getDispatchedBy().getId(),
@@ -112,10 +111,20 @@ public class DashboardService {
                                         req.getDispatchedBy().getOrganization().getId(),
                                         req.getDispatchedBy().getOrganization().getName(),
                                         req.getDispatchedBy().isActive()));
+                        detail.setDispatchedByName(req.getDispatchedBy().getFullName());
+                }
+
+                // Names for status timeline
+                if (req.getApprovedBy() != null) {
+                        detail.setApprovedByName(req.getApprovedBy().getFullName());
+                }
+                if (req.getPaidBy() != null) {
+                        detail.setPaidByName(req.getPaidBy().getFullName());
                 }
 
                 detail.setCreatedAt(req.getCreatedAt());
                 detail.setUpdatedAt(req.getUpdatedAt());
+                detail.setSubmittedAt(req.getSubmittedAt());
                 detail.setApprovedAt(req.getApprovedAt());
                 detail.setPaidAt(req.getPaidAt());
                 detail.setDispatchedAt(req.getDispatchedAt());

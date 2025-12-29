@@ -38,6 +38,10 @@ public class RequisitionDetailDTO {
     // User
     private UserDTO createdBy;
     private UserDTO dispatchedBy;
+    private String createdByName;
+    private String approvedByName;
+    private String paidByName;
+    private String dispatchedByName;
 
     // Timestamps
     private LocalDateTime createdAt;
