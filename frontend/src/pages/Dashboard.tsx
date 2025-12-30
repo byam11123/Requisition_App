@@ -78,13 +78,19 @@ const Dashboard: React.FC = () => {
     const handleExport = async () => {
         try {
             setExporting(true);
-            const response = await requisitionAPI.exportRequisitions();
+            let response;
+
+            if (selectedIds.length > 0) {
+                response = await requisitionAPI.exportSelectedRequisitions(selectedIds);
+            } else {
+                response = await requisitionAPI.exportRequisitions();
+            }
 
             // Create blob link to download
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', 'Requisition_Report.xlsx'); // or extract from header
+            link.setAttribute('download', selectedIds.length > 0 ? 'Selected_Requisitions.xlsx' : 'Requisition_Report.xlsx');
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -186,7 +192,7 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // Bulk delete for admin (typically for COMPLETED requisitions)
+    // Bulk delete for admin or purchaser
     const handleBulkDelete = async () => {
         if (selectedIds.length === 0) return;
         if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected requisitions?`)) {
@@ -194,7 +200,7 @@ const Dashboard: React.FC = () => {
         }
         try {
             setDeleting(true);
-            await Promise.all(selectedIds.map(id => requisitionAPI.delete(id)));
+            await requisitionAPI.bulkDelete(selectedIds);
             setSelectedIds([]);
             loadDashboardData();
         } catch (error) {
@@ -270,6 +276,14 @@ const Dashboard: React.FC = () => {
     // Visible rows for current page (used for header checkbox state)
     const paginatedRequisitions = filteredRequisitions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
     const visibleIds = paginatedRequisitions.map(r => r.id);
+
+    const formatDateTime = (value: string) => {
+        if (!value) return '';
+        const iso = value.endsWith('Z') ? value : value + 'Z';
+        const d = new Date(iso);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
     const allSelectedVisible = visibleIds.length > 0 && visibleIds.every(id => selectedIds.includes(id));
     const someSelectedVisible = visibleIds.some(id => selectedIds.includes(id));
 
@@ -294,7 +308,7 @@ const Dashboard: React.FC = () => {
                     Dashboard
                 </Typography>
                 <Stack direction="row" spacing={2}>
-                    {user?.role === 'ADMIN' && selectedIds.length > 0 && (
+                    {selectedIds.length > 0 && user?.role === 'ADMIN' && (
                         <Button
                             variant="outlined"
                             color="error"
@@ -311,7 +325,7 @@ const Dashboard: React.FC = () => {
                         onClick={handleExport}
                         disabled={exporting}
                     >
-                        {exporting ? 'Exporting...' : 'Export Excel'}
+                        {exporting ? 'Exporting...' : (selectedIds.length > 0 ? `Export Selected (${selectedIds.length})` : 'Export All')}
                     </Button>
                     {user?.role === 'PURCHASER' && (
                         <Button
@@ -456,9 +470,18 @@ const Dashboard: React.FC = () => {
                         >
                             <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                                 <Stack direction="row" justifyContent="space-between" alignItems="start" mb={1}>
-                                    <Box>
-                                        <Typography variant="subtitle1" fontWeight="bold">{row.requestId}</Typography>
-                                        <Typography variant="caption" color="text.secondary">{row.createdAt}</Typography>
+                                    <Box display="flex" alignItems="center">
+                                        <Checkbox
+                                            size="small"
+                                            checked={selectedIds.includes(row.id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={() => toggleRowSelection(row.id)}
+                                            sx={{ mr: 1, p: 0 }}
+                                        />
+                                        <Box>
+                                            <Typography variant="subtitle1" fontWeight="bold">{row.requestId}</Typography>
+                                            <Typography variant="caption" color="text.secondary">{formatDateTime(row.createdAt)}</Typography>
+                                        </Box>
                                     </Box>
                                     <Stack direction="column" alignItems="end" spacing={0.5}>
                                         <Chip
@@ -478,25 +501,25 @@ const Dashboard: React.FC = () => {
                                 <Divider sx={{ my: 1 }} />
                                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                                     <Typography variant="h6" color="primary">₹{row.amount?.toLocaleString()}</Typography>
-                                        <Stack direction="row" spacing={0.5}>
-                                            {/* Edit Action: Manager (if not PAID) OR Purchaser (if PENDING) OR Admin (if not PAID) */}
-                                            {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
-                                                (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
-                                                (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
+                                    <Stack direction="row" spacing={0.5}>
+                                        {/* Edit Action: Manager (if not PAID) OR Purchaser (if PENDING) OR Admin (if not PAID) */}
+                                        {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
+                                            (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
+                                            (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
                                                 <IconButton size="small" onClick={(e) => { e.stopPropagation(); navigate(`/edit/${row.id}`); }}>
                                                     <EditIcon fontSize="small" />
                                                 </IconButton>
                                             )}
-                                            {/* Delete Action: same rules as desktop */}
-                                            {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
-                                                (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
-                                                (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
+                                        {/* Delete Action: same rules as desktop */}
+                                        {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
+                                            (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
+                                            (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
                                                 <IconButton size="small" color="error" onClick={(e) => handleDelete(e, row.id)}>
                                                     <DeleteIcon fontSize="small" />
                                                 </IconButton>
                                             )}
-                                            <ChevronRight color="action" />
-                                        </Stack>
+                                        <ChevronRight color="action" />
+                                    </Stack>
                                 </Stack>
                             </CardContent>
                         </Card>
@@ -520,20 +543,18 @@ const Dashboard: React.FC = () => {
 
             {/* Desktop Table View */}
             <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                     <Table sx={{ minWidth: 650 }} aria-label="requisitions table">
                         <TableHead>
                             <TableRow sx={{ bgcolor: 'background.default' }}>
-                                {user?.role === 'ADMIN' && (
-                                    <TableCell padding="checkbox">
-                                        <Checkbox
-                                            color="primary"
-                                            indeterminate={someSelectedVisible && !allSelectedVisible}
-                                            checked={allSelectedVisible}
-                                            onChange={toggleSelectAllVisible}
-                                        />
-                                    </TableCell>
-                                )}
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        color="primary"
+                                        indeterminate={someSelectedVisible && !allSelectedVisible}
+                                        checked={allSelectedVisible && visibleIds.length > 0}
+                                        onChange={toggleSelectAllVisible}
+                                    />
+                                </TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Request ID</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Priority</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Item & Site</TableCell>
@@ -548,123 +569,135 @@ const Dashboard: React.FC = () => {
                         <TableBody>
                             {paginatedRequisitions.map((row) => {
                                 const isCompleted = row.status === 'COMPLETED';
+                                const isDraft = row.status === 'DRAFT';
                                 const rowSelected = selectedIds.includes(row.id);
-                                const canAdminSelect = user?.role === 'ADMIN' && isCompleted;
+
+                                // Can select for export (all users)
+                                const canSelect = true;
 
                                 return (
-                                    <TableRow key={row.id} hover>
-                                        {user?.role === 'ADMIN' && (
-                                            <TableCell padding="checkbox">
-                                                <Checkbox
-                                                    color="primary"
-                                                    disabled={!canAdminSelect}
-                                                    checked={rowSelected}
-                                                    onChange={() => toggleRowSelection(row.id)}
-                                                />
-                                            </TableCell>
-                                        )}
+                                    <TableRow
+                                        key={row.id}
+                                        hover
+                                        onClick={() => toggleRowSelection(row.id)}
+                                        sx={{ cursor: 'pointer' }}
+                                        selected={rowSelected}
+                                    >
+                                        <TableCell padding="checkbox">
+                                            <Checkbox
+                                                color="primary"
+                                                disabled={!canSelect}
+                                                checked={rowSelected}
+                                                onClick={(e) => e.stopPropagation()}
+                                                onChange={() => toggleRowSelection(row.id)}
+                                            />
+                                        </TableCell>
                                         <TableCell component="th" scope="row" sx={{ fontWeight: '600', color: 'primary.main' }}>
                                             {row.requestId}
                                         </TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={row.priority || 'NORMAL'}
-                                            color={getPriorityColor(row.priority) as any}
-                                            size="small"
-                                            variant="outlined"
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Box display="flex" flexDirection="column">
-                                            <Typography variant="body2" fontWeight="medium">{row.description}</Typography>
-                                            <Typography variant="caption" color="text.secondary">{row.siteAddress || 'No Site'}</Typography>
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Box display="flex" flexDirection="column">
-                                            <Typography variant="body2">{row.createdByName}</Typography>
-                                            <Typography variant="caption" color="text.secondary">{row.createdAt}</Typography>
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell>₹{row.amount?.toLocaleString()}</TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={row.approvalStatus}
-                                            color={getStatusColor(row.approvalStatus) as any}
-                                            size="small"
-                                            variant={row.approvalStatus === 'PENDING' ? 'outlined' : 'filled'}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={row.paymentStatus}
-                                            size="small"
-                                            variant="outlined"
-                                            color={row.paymentStatus === 'DONE' ? 'success' : 'default'}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={row.dispatchStatus}
-                                            color={row.dispatchStatus === 'DISPATCHED' ? 'success' : 'default'}
-                                            size="small"
-                                            variant="outlined"
-                                        />
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        <IconButton
-                                            size="small"
-                                            color="primary"
-                                            title="View Details"
-                                            onClick={() => navigate(`/requisitions/${row.id}`)}
-                                        >
-                                            <ViewIcon />
-                                        </IconButton>
+                                        <TableCell>
+                                            <Chip
+                                                label={row.priority || 'NORMAL'}
+                                                color={getPriorityColor(row.priority) as any}
+                                                size="small"
+                                                variant="outlined"
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Box display="flex" flexDirection="column">
+                                                <Typography variant="body2" fontWeight="bold">
+                                                    {row.materialDescription || row.description}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {row.siteAddress || 'No Site'}
+                                                </Typography>
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Box display="flex" flexDirection="column">
+                                                <Typography variant="body2">{row.createdByName}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{formatDateTime(row.createdAt)}</Typography>
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>₹{row.amount?.toLocaleString()}</TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={row.approvalStatus}
+                                                color={getStatusColor(row.approvalStatus) as any}
+                                                size="small"
+                                                variant={row.approvalStatus === 'PENDING' ? 'outlined' : 'filled'}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={row.paymentStatus}
+                                                size="small"
+                                                variant="outlined"
+                                                color={row.paymentStatus === 'DONE' ? 'success' : 'default'}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={row.dispatchStatus}
+                                                color={row.dispatchStatus === 'DISPATCHED' ? 'success' : 'default'}
+                                                size="small"
+                                                variant="outlined"
+                                            />
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <IconButton
+                                                size="small"
+                                                color="primary"
+                                                title="View Details"
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/requisitions/${row.id}`); }}
+                                            >
+                                                <ViewIcon />
+                                            </IconButton>
 
-                                        {/* Edit Action: Manager (if not PAID) OR Purchaser (if PENDING) */}
-                                        {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
-                                            (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
-                                            (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
-                                                <IconButton
-                                                    size="small"
-                                                    color="info"
-                                                    title="Edit"
-                                                    onClick={(e) => { e.stopPropagation(); navigate(`/edit/${row.id}`); }}
-                                                >
-                                                    <EditIcon />
-                                                </IconButton>
-                                            )}
+                                            {/* Edit Action: Manager (if not PAID) OR Purchaser (if PENDING) */}
+                                            {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
+                                                (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
+                                                (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
+                                                    <IconButton
+                                                        size="small"
+                                                        color="info"
+                                                        title="Edit"
+                                                        onClick={(e) => { e.stopPropagation(); navigate(`/edit/${row.id}`); }}
+                                                    >
+                                                        <EditIcon />
+                                                    </IconButton>
+                                                )}
 
-                                        {/* Delete Action: Manager (if not PAID) OR Purchaser (if PENDING) */}
-                                        {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
-                                            (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
-                                            (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
-                                                <IconButton
-                                                    size="small"
-                                                    color="error"
-                                                    title="Delete"
-                                                    onClick={(e) => handleDelete(e, row.id)}
-                                                >
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            )}
+                                            {/* Delete Action: Manager (if not PAID) OR Purchaser (if PENDING) */}
+                                            {((user?.role === 'MANAGER' && row.paymentStatus !== 'DONE') ||
+                                                (user?.role === 'PURCHASER' && row.approvalStatus === 'PENDING') ||
+                                                (user?.role === 'ADMIN' && row.paymentStatus !== 'DONE')) && (
+                                                    <IconButton
+                                                        size="small"
+                                                        color="error"
+                                                        title="Delete"
+                                                        onClick={(e) => handleDelete(e, row.id)}
+                                                    >
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                )}
 
-                                        {/* Dispatch Action: Purchaser only, after Approval */}
-                                        {user?.role === 'PURCHASER' &&
-                                            row.dispatchStatus === 'NOT_DISPATCHED' &&
-                                            row.approvalStatus === 'APPROVED' && (
-                                                <IconButton
-                                                    size="small"
-                                                    color="secondary"
-                                                    title="Mark as Dispatched"
-                                                    onClick={(e) => handleDispatch(e, row.id)}
-                                                >
-                                                    <DispatchIcon />
-                                                </IconButton>
-                                            )}
-                                    </TableCell>
-                                </TableRow>
-                            );
+                                            {/* Dispatch Action: Purchaser only, after Approval */}
+                                            {user?.role === 'PURCHASER' &&
+                                                row.dispatchStatus === 'NOT_DISPATCHED' &&
+                                                row.approvalStatus === 'APPROVED' && (
+                                                    <IconButton
+                                                        size="small"
+                                                        color="secondary"
+                                                        title="Mark as Dispatched"
+                                                        onClick={(e) => handleDispatch(e, row.id)}
+                                                    >
+                                                        <DispatchIcon />
+                                                    </IconButton>
+                                                )}
+                                        </TableCell>
+                                    </TableRow>
+                                );
                             })}
                             {filteredRequisitions.length === 0 && !loading && (
                                 <TableRow>

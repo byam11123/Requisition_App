@@ -6,5 +6,6 @@ RUN mvn clean package -Dmaven.test.skip=true
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY --from=build /build/target/*.jar app.jar
-EXPOSE 8080
+RUN apk add --no-cache curl
+EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "app.jar"]

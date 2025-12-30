@@ -24,4 +24,5 @@ public class RequisitionCardDTO {
     private String itemPhotoUrl; // First item photo
     private String siteAddress;
     private String vendorName;
+    private String materialDescription;
 }

@@ -20,12 +20,18 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return children;
 };
 
+// When visiting the root URL (/), decide where to go based on auth state
+const RootRedirect = () => {
+    const { token } = useSelector((state: RootState) => state.auth);
+    return <Navigate to={token ? "/dashboard" : "/login"} replace />;
+};
+
 function App() {
     return (
         <BrowserRouter>
             <Routes>
                 <Route path="/" element={<Layout />}>
-                    <Route index element={<Navigate to="/dashboard" replace />} />
+                    <Route index element={<RootRedirect />} />
                     <Route path="login" element={<Login />} />
                     <Route path="register-organization" element={<RegisterOrganization />} />
                     <Route

@@ -34,6 +34,7 @@ interface EditProfileForm {
 
 interface EditOrganizationForm {
     name: string;
+    requisitionPrefix: string;
     contactEmail: string;
     contactPhone: string;
     address: string;
@@ -193,6 +194,7 @@ const Profile: React.FC = () => {
     const handleOpenOrgEdit = () => {
         if (organization) {
             setOrgValue('name', organization.name || '');
+            setOrgValue('requisitionPrefix', organization.requisitionPrefix || '');
             setOrgValue('contactEmail', organization.contactEmail || '');
             setOrgValue('contactPhone', organization.contactPhone || '');
             setOrgValue('address', organization.address || '');
@@ -417,6 +419,18 @@ const Profile: React.FC = () => {
 
                             <Grid item xs={12} sm={6}>
                                 <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                    <VpnKeyIcon color="action" />
+                                    <Typography variant="subtitle2" color="text.secondary">
+                                        Requisition Prefix
+                                    </Typography>
+                                </Box>
+                                <Typography variant="body1" fontWeight="medium">
+                                    {organization.requisitionPrefix || '(Default)'}
+                                </Typography>
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <Box display="flex" alignItems="center" gap={1} mb={1}>
                                     <EmailIcon color="action" />
                                     <Typography variant="subtitle2" color="text.secondary">
                                         Contact Email
@@ -517,6 +531,16 @@ const Profile: React.FC = () => {
                             {...registerOrgEdit('name', { required: 'Organization name is required' })}
                             error={!!orgEditErrors.name}
                             helperText={orgEditErrors.name?.message}
+                        />
+
+                        <TextField
+                            fullWidth
+                            label="Requisition Prefix (e.g., ORB)"
+                            margin="normal"
+                            placeholder="Defaults to first 3 letters of name if empty"
+                            inputProps={{ style: { textTransform: 'uppercase' }, maxLength: 5 }}
+                            {...registerOrgEdit('requisitionPrefix')}
+                            helperText="Used in Request IDs (e.g., ORB/25/P00001)"
                         />
 
                         <TextField

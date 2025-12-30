@@ -51,8 +51,8 @@ public class RequisitionService {
         requisition.setPriority(Requisition.Priority.valueOf(request.getPriority()));
 
         // Auto-fields
-        requisition.setRequestId(generateRequestId());
         requisition.setOrganization(user.getOrganization()); // Will fail if user org is null (migration needed)
+        requisition.setRequestId(generateRequestId(user.getOrganization()));
         requisition.setStatus(Requisition.RequisitionStatus.DRAFT);
         requisition.setApprovalStatus(Requisition.ApprovalStatus.PENDING);
         requisition.setPaymentStatus(Requisition.PaymentStatus.NOT_DONE);
@@ -62,30 +62,45 @@ public class RequisitionService {
         requisitionRepository.save(requisition);
         RequisitionDTO dto = convertToDTO(requisition);
 
-        // Notify subscribers
-        messagingTemplate.convertAndSend("/topic/requisitions", dto);
+        // Notify subscribers (scoped by organization)
+        Long orgId = requisition.getOrganization() != null ? requisition.getOrganization().getId() : null;
+        if (orgId != null) {
+            messagingTemplate.convertAndSend("/topic/org." + orgId + "/requisitions", dto);
+        }
 
         return dto;
     }
 
-    public List<RequisitionDTO> getAllRequisitions() {
-        return requisitionRepository.findAll().stream()
+    public List<RequisitionDTO> getAllRequisitions(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return requisitionRepository.findByOrganizationOrderByCreatedAtDesc(user.getOrganization()).stream()
                 .map(this::convertToDTO)
                 .toList();
     }
 
-    public List<Requisition> getAllRequisitionsEntities() {
-        return requisitionRepository.findAll();
+    public List<Requisition> getAllRequisitionsEntities(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return requisitionRepository.findByOrganizationOrderByCreatedAtDesc(user.getOrganization());
     }
 
-    public RequisitionDTO getRequisitionById(Long id) {
-        Requisition req = requisitionRepository.findById(id)
+    public RequisitionDTO getRequisitionById(Long id, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Requisition req = requisitionRepository.findByIdAndOrganization(id, user.getOrganization())
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
         return convertToDTO(req);
     }
 
     public RequisitionDTO updateRequisition(Long id, Long userId, CreateRequisitionRequest request) {
-        Requisition req = requisitionRepository.findById(id)
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Requisition req = requisitionRepository.findByIdAndOrganization(id, user.getOrganization())
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
 
         // Only allow updates if status is DRAFT
@@ -93,13 +108,11 @@ public class RequisitionService {
             throw new RuntimeException("Can only update requisitions in DRAFT status");
         }
 
+        boolean isOwner = req.getCreatedBy() != null && req.getCreatedBy().getId().equals(userId);
+
         // Verify user owns this requisition or is admin
-        if (!req.getCreatedBy().getId().equals(userId)) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            if (user.getRole() != User.UserRole.ADMIN) {
-                throw new RuntimeException("Unauthorized to update this requisition");
-            }
+        if (!isOwner && user.getRole() != User.UserRole.ADMIN) {
+            throw new RuntimeException("Unauthorized to update this requisition");
         }
 
         // Update fields
@@ -118,50 +131,86 @@ public class RequisitionService {
         requisitionRepository.save(req);
         RequisitionDTO dto = convertToDTO(req);
 
-        // Notify subscribers
-        messagingTemplate.convertAndSend("/topic/requisitions", dto);
+        // Notify subscribers (scoped by organization)
+        Long orgId = req.getOrganization() != null ? req.getOrganization().getId() : null;
+        if (orgId != null) {
+            messagingTemplate.convertAndSend("/topic/org." + orgId + "/requisitions", dto);
+        }
 
         return dto;
     }
 
     public void deleteRequisition(Long id, Long userId) {
-        Requisition req = requisitionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Requisition not found"));
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        deleteSingleRequisition(id, user);
+
+        // Notify subscribers (scoped by organization)
+        // Note: Notification logic moved inside deleteSingleRequisition or handled here
+        // if bulk logic differs
+    }
+
+    public void deleteRequisitionsBulk(List<Long> ids, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() != User.UserRole.ADMIN) {
+            throw new RuntimeException("Unauthorized for bulk delete. Admin access only.");
+        }
+
+        for (Long id : ids) {
+            try {
+                deleteSingleRequisition(id, user);
+            } catch (Exception e) {
+                // Log error but continue? Or fail all?
+                // For now, fast-fail on first error to be safe, or we could collect errors.
+                // Let's allow continuing for others if one is not found/not authorized?
+                // Better: Check all permissions first or just let it throw.
+                // Throwing is safer for consistency.
+                throw e;
+            }
+        }
+    }
+
+    private void deleteSingleRequisition(Long id, User user) {
+        Requisition req = requisitionRepository.findByIdAndOrganization(id, user.getOrganization())
+                .orElseThrow(() -> new RuntimeException("Requisition not found: " + id));
+
         boolean isAdmin = user.getRole() == User.UserRole.ADMIN;
-        boolean isOwner = req.getCreatedBy() != null && req.getCreatedBy().getId().equals(userId);
+        boolean isOwner = req.getCreatedBy() != null && req.getCreatedBy().getId().equals(user.getId());
 
         if (isAdmin) {
-            // Admin can delete DRAFT or COMPLETED requisitions
+            // Admin can delete DRAFT or COMPLETED
             if (req.getStatus() != Requisition.RequisitionStatus.DRAFT
                     && req.getStatus() != Requisition.RequisitionStatus.COMPLETED) {
-                throw new RuntimeException("Admin can only delete DRAFT or COMPLETED requisitions");
+                throw new RuntimeException("Admin can only delete DRAFT or COMPLETED requisitions. ID: " + id);
             }
         } else {
-            // Non-admin: only delete own DRAFT requisitions
+            // Non-admin (Purchaser): only delete own DRAFT requisitions
             if (!isOwner) {
-                throw new RuntimeException("Unauthorized to delete this requisition");
+                throw new RuntimeException("Unauthorized to delete requisition ID: " + id);
             }
             if (req.getStatus() != Requisition.RequisitionStatus.DRAFT) {
-                throw new RuntimeException("Can only delete requisitions in DRAFT status");
+                throw new RuntimeException("Can only delete requisitions in DRAFT status. ID: " + id);
             }
         }
 
         requisitionRepository.delete(req);
 
         // Notify subscribers
-        messagingTemplate.convertAndSend("/topic/requisitions/deleted", id);
+        Long orgId = req.getOrganization() != null ? req.getOrganization().getId() : null;
+        if (orgId != null) {
+            messagingTemplate.convertAndSend("/topic/org." + orgId + "/requisitions/deleted", id);
+        }
     }
 
     public RequisitionDTO processApproval(Long id, Long userId, ApprovalActionRequest request) {
-        Requisition req = requisitionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Requisition not found"));
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Requisition req = requisitionRepository.findByIdAndOrganization(id, user.getOrganization())
+                .orElseThrow(() -> new RuntimeException("Requisition not found"));
 
         if (user.getRole() != User.UserRole.MANAGER && user.getRole() != User.UserRole.ADMIN) {
             throw new RuntimeException("Unauthorized: Only Managers can approve requisitions");
@@ -186,21 +235,24 @@ public class RequisitionService {
 
         requisitionRepository.save(req);
         RequisitionDTO dto = convertToDTO(req);
-        messagingTemplate.convertAndSend("/topic/requisitions", dto);
+        Long orgId = req.getOrganization() != null ? req.getOrganization().getId() : null;
+        if (orgId != null) {
+            messagingTemplate.convertAndSend("/topic/org." + orgId + "/requisitions", dto);
+        }
         return dto;
     }
 
     public RequisitionDTO updatePayment(Long id, Long userId, PaymentUpdateRequest request) {
-        Requisition req = requisitionRepository.findById(id)
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Requisition req = requisitionRepository.findByIdAndOrganization(id, user.getOrganization())
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
 
         if (req.getStatus() != Requisition.RequisitionStatus.APPROVED) {
             // Depending on workflow, payment might only be allowed if approved.
             // throw new RuntimeException("Requisition must be APPROVED before payment");
         }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (user.getRole() != User.UserRole.ACCOUNTANT && user.getRole() != User.UserRole.ADMIN) {
             throw new RuntimeException("Unauthorized: Only Accountants can update payment");
@@ -231,12 +283,18 @@ public class RequisitionService {
 
         requisitionRepository.save(req);
         RequisitionDTO dto = convertToDTO(req);
-        messagingTemplate.convertAndSend("/topic/requisitions", dto);
+        Long orgId = req.getOrganization() != null ? req.getOrganization().getId() : null;
+        if (orgId != null) {
+            messagingTemplate.convertAndSend("/topic/org." + orgId + "/requisitions", dto);
+        }
         return dto;
     }
 
     public RequisitionDTO processMaterialReceipt(Long id, Long userId, MaterialReceiptRequest request) {
-        Requisition req = requisitionRepository.findById(id)
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Requisition req = requisitionRepository.findByIdAndOrganization(id, user.getOrganization())
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
 
         // Allow creator or Admin or Manager? Usually Purchaser (creator) confirms
@@ -250,12 +308,18 @@ public class RequisitionService {
 
         requisitionRepository.save(req);
         RequisitionDTO dto = convertToDTO(req);
-        messagingTemplate.convertAndSend("/topic/requisitions", dto);
+        Long orgId = req.getOrganization() != null ? req.getOrganization().getId() : null;
+        if (orgId != null) {
+            messagingTemplate.convertAndSend("/topic/org." + orgId + "/requisitions", dto);
+        }
         return dto;
     }
 
-    public RequisitionDTO uploadFile(Long id, String fileType, String fileName) {
-        Requisition req = requisitionRepository.findById(id)
+    public RequisitionDTO uploadFile(Long id, Long userId, String fileType, String fileName) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Requisition req = requisitionRepository.findByIdAndOrganization(id, user.getOrganization())
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
 
         String fileUrl = "/uploads/" + fileName; // Relative URL served by static resource handler
@@ -277,7 +341,10 @@ public class RequisitionService {
 
         requisitionRepository.save(req);
         RequisitionDTO dto = convertToDTO(req);
-        messagingTemplate.convertAndSend("/topic/requisitions", dto);
+        Long orgId = req.getOrganization() != null ? req.getOrganization().getId() : null;
+        if (orgId != null) {
+            messagingTemplate.convertAndSend("/topic/org." + orgId + "/requisitions", dto);
+        }
         return dto;
     }
 
@@ -285,8 +352,11 @@ public class RequisitionService {
         return fileStorageService.storeFile(file);
     }
 
-    public void submitRequisition(Long requisitionId) {
-        Requisition req = requisitionRepository.findById(requisitionId)
+    public void submitRequisition(Long requisitionId, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Requisition req = requisitionRepository.findByIdAndOrganization(requisitionId, user.getOrganization())
                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
 
         req.setStatus(Requisition.RequisitionStatus.SUBMITTED);
@@ -295,13 +365,19 @@ public class RequisitionService {
 
         createApprovalChain(req);
 
-        // Notify subscribers
-        messagingTemplate.convertAndSend("/topic/requisitions", convertToDTO(req));
+        // Notify subscribers (scoped by organization)
+        Long orgId = req.getOrganization() != null ? req.getOrganization().getId() : null;
+        if (orgId != null) {
+            messagingTemplate.convertAndSend("/topic/org." + orgId + "/requisitions", convertToDTO(req));
+        }
     }
 
     private void createApprovalChain(Requisition requisition) {
         List<User> managers = userRepository.findAll().stream()
                 .filter(u -> u.getRole() == User.UserRole.MANAGER)
+                .filter(u -> u.getOrganization() != null
+                        && requisition.getOrganization() != null
+                        && u.getOrganization().getId().equals(requisition.getOrganization().getId()))
                 .toList();
 
         int sequence = 1;
@@ -315,9 +391,65 @@ public class RequisitionService {
         }
     }
 
-    private String generateRequestId() {
-        Integer nextNum = requisitionRepository.getNextRequestIdNumber();
-        return String.format("REQ-%04d", nextNum);
+    private synchronized String generateRequestId(Organization org) {
+        if (org == null) {
+            throw new RuntimeException("Organization is required to generate request ID");
+        }
+
+        // 1. Determine Prefix
+        String prefix = org.getRequisitionPrefix();
+        if (prefix == null || prefix.trim().isEmpty()) {
+            prefix = org.getName().replaceAll("\\s+", "").toUpperCase();
+            if (prefix.length() > 3)
+                prefix = prefix.substring(0, 3);
+        }
+        prefix = prefix.toUpperCase();
+
+        // 2. Determine Year (YY)
+        String year = java.time.Year.now().format(java.time.format.DateTimeFormatter.ofPattern("yy"));
+
+        // 3. Determine Type Code (P for Purchase)
+        String typeCode = "P";
+
+        // 4. Construct Search Prefix: ORB/25/P
+        String searchPrefix = prefix + "/" + year + "/" + typeCode;
+
+        // 5. Find last ID matching this pattern
+        String lastId = requisitionRepository.findLastRequestIdByPrefix(searchPrefix);
+
+        int nextSeq = 1;
+        if (lastId != null) {
+            // Extract sequence part (last 5 digits)
+            // Format: PREFIX/YY/P00001
+            // We assume the suffix is exactly 5 digits.
+            // Let's be robust: substring after the last 'P' or just take last 5 chars?
+            // Safer: remove the searchPrefix and parse the rest.
+            try {
+                // lastId: ORB/25/P00001 -> remove ORB/25/P -> 00001
+                // searchPrefix: ORB/25/P
+                // Note: searchPrefix might not match perfectly if we used LIKE in query
+                // correctly?
+                // The query was LIKE :prefix%, so lastId definitely starts with searchPrefix.
+                String seqStr = lastId.substring(searchPrefix.length());
+                nextSeq = Integer.parseInt(seqStr) + 1;
+            } catch (Exception e) {
+                // Fallback if parsing fails (shouldn't happen with controlled format)
+                nextSeq = 1;
+            }
+        }
+
+        // 6. Format New ID
+        // Format: ORB/25/P00001
+        return String.format("%s%05d", searchPrefix, nextSeq);
+    }
+
+    public List<Requisition> getRequisitionsByIds(List<Long> ids, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return requisitionRepository.findByOrganizationOrderByCreatedAtDesc(user.getOrganization()).stream()
+                .filter(req -> ids.contains(req.getId()))
+                .toList(); // Filter in memory for simplicity and security (ensures org check)
     }
 
     private RequisitionDTO convertToDTO(Requisition req) {

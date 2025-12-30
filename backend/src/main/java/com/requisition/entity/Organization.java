@@ -18,6 +18,8 @@ public class Organization {
     @Column(nullable = false)
     private String name;
 
+    private String requisitionPrefix; // Custom prefix e.g., ORB, BPL
+
     @Column(nullable = false)
     private String contactEmail;
 

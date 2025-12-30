@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public class OrganizationDTO {
     private Long id;
     private String name;
+    private String requisitionPrefix;
     private String contactEmail;
     private String contactPhone;
     private String address;

@@ -40,6 +40,7 @@ export const requisitionAPI = {
     create: (data: any) => api.post('/requisitions', data),
     update: (id: number, data: any) => api.put(`/requisitions/${id}`, data),
     delete: (id: number) => api.delete(`/requisitions/${id}`),
+    bulkDelete: (ids: number[]) => api.delete('/requisitions/bulk', { data: ids }),
     submit: (id: number) => api.post(`/requisitions/${id}/submit`),
 
     // Approval Workflow
@@ -65,6 +66,7 @@ export const requisitionAPI = {
     dispatch: (id: number) => api.post(`/dashboard/requisitions/${id}/dispatch`),
 
     exportRequisitions: () => api.get('/requisitions/export', { responseType: 'blob' }),
+    exportSelectedRequisitions: (ids: number[]) => api.post('/requisitions/export/selected', ids, { responseType: 'blob' }),
 };
 
 export const userManagementAPI = {

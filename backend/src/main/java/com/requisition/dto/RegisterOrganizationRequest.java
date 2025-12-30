@@ -7,6 +7,7 @@ public class RegisterOrganizationRequest {
     private String contactEmail;
     private String contactPhone;
     private String address;
+    private String requisitionPrefix; // Optional prefix during registration
 
     // Admin user details
     private String adminName;
@@ -81,5 +82,13 @@ public class RegisterOrganizationRequest {
 
     public void setAdminPassword(String adminPassword) {
         this.adminPassword = adminPassword;
+    }
+
+    public String getRequisitionPrefix() {
+        return requisitionPrefix;
+    }
+
+    public void setRequisitionPrefix(String requisitionPrefix) {
+        this.requisitionPrefix = requisitionPrefix;
     }
 }

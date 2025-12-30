@@ -1,8 +1,10 @@
 package com.requisition.controller;
 
 import com.requisition.dto.*;
+import com.requisition.entity.User;
 import com.requisition.service.*;
 import com.requisition.security.JwtUtil;
+import com.requisition.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,11 +25,18 @@ public class DashboardController {
     private DispatchService dispatchService;
     @Autowired
     private JwtUtil jwtUtil;
+    @Autowired
+    private UserRepository userRepository;
 
     // Get stats for a requisition type
     @GetMapping("/stats/{typeId}")
-    public ResponseEntity<ApiResponse<DashboardStatsDTO>> getStats(@PathVariable Long typeId) {
-        DashboardStatsDTO stats = dashboardService.getDashboardStats(typeId);
+    public ResponseEntity<ApiResponse<DashboardStatsDTO>> getStats(@PathVariable Long typeId,
+            HttpServletRequest request) {
+        Long userId = extractUserId(request);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        DashboardStatsDTO stats = dashboardService.getDashboardStats(user.getOrganization(), typeId);
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Stats retrieved", stats));
     }
@@ -35,16 +44,26 @@ public class DashboardController {
     // Get all requisitions for a type
     @GetMapping("/requisitions/{typeId}")
     public ResponseEntity<ApiResponse<List<RequisitionCardDTO>>> getRequisitionsByType(
-            @PathVariable Long typeId) {
-        List<RequisitionCardDTO> requisitions = dashboardService.getRequisitionsByType(typeId);
+            @PathVariable Long typeId,
+            HttpServletRequest request) {
+        Long userId = extractUserId(request);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        List<RequisitionCardDTO> requisitions = dashboardService.getRequisitionsByType(user.getOrganization(), typeId);
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Requisitions retrieved", requisitions));
     }
 
     // Get detail
     @GetMapping("/requisitions/{id}/detail")
-    public ResponseEntity<ApiResponse<RequisitionDetailDTO>> getRequisitionDetail(@PathVariable Long id) {
-        RequisitionDetailDTO detail = dashboardService.getRequisitionDetail(id);
+    public ResponseEntity<ApiResponse<RequisitionDetailDTO>> getRequisitionDetail(@PathVariable Long id,
+            HttpServletRequest request) {
+        Long userId = extractUserId(request);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        RequisitionDetailDTO detail = dashboardService.getRequisitionDetail(user.getOrganization(), id);
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Requisition detail retrieved", detail));
     }
@@ -62,8 +81,10 @@ public class DashboardController {
 
     // Submit for approval
     @PostMapping("/requisitions/{id}/submit")
-    public ResponseEntity<ApiResponse<String>> submitRequisition(@PathVariable Long id) {
-        requisitionService.submitRequisition(id);
+    public ResponseEntity<ApiResponse<String>> submitRequisition(@PathVariable Long id,
+            HttpServletRequest httpRequest) {
+        Long userId = extractUserId(httpRequest);
+        requisitionService.submitRequisition(id, userId);
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Requisition submitted for approval", null));
     }

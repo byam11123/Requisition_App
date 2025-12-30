@@ -21,11 +21,12 @@ public class DispatchService {
     private UserRepository userRepository;
 
     public void markAsDispatched(Long requisitionId, Long userId) {
-        Requisition requisition = requisitionRepository.findById(requisitionId)
-                .orElseThrow(() -> new RuntimeException("Requisition not found"));
-
         User purchaser = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Requisition requisition = requisitionRepository.findByIdAndOrganization(requisitionId,
+                purchaser.getOrganization())
+                .orElseThrow(() -> new RuntimeException("Requisition not found"));
 
         if (purchaser.getRole() != User.UserRole.PURCHASER && purchaser.getRole() != User.UserRole.ADMIN) {
             throw new RuntimeException("Only purchasers or admins can dispatch goods");

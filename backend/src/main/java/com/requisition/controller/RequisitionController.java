@@ -32,16 +32,19 @@ public class RequisitionController {
         }
 
         @GetMapping
-        public ResponseEntity<ApiResponse<List<RequisitionDTO>>> getAll() {
-                List<RequisitionDTO> requisitions = requisitionService.getAllRequisitions();
+        public ResponseEntity<ApiResponse<List<RequisitionDTO>>> getAll(HttpServletRequest httpRequest) {
+                Long userId = extractUserId(httpRequest);
+                List<RequisitionDTO> requisitions = requisitionService.getAllRequisitions(userId);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(true, "Requisitions retrieved", requisitions,
                                                 java.time.LocalDateTime.now()));
         }
 
         @GetMapping("/{id}")
-        public ResponseEntity<ApiResponse<RequisitionDTO>> getById(@PathVariable Long id) {
-                RequisitionDTO requisition = requisitionService.getRequisitionById(id);
+        public ResponseEntity<ApiResponse<RequisitionDTO>> getById(@PathVariable Long id,
+                        HttpServletRequest httpRequest) {
+                Long userId = extractUserId(httpRequest);
+                RequisitionDTO requisition = requisitionService.getRequisitionById(id, userId);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(true, "Requisition retrieved", requisition,
                                                 java.time.LocalDateTime.now()));
@@ -69,9 +72,22 @@ public class RequisitionController {
                                 new ApiResponse<>(true, "Requisition deleted", null, java.time.LocalDateTime.now()));
         }
 
+        @DeleteMapping("/bulk")
+        public ResponseEntity<ApiResponse<String>> deleteRequisitionsBulk(
+                        @RequestBody List<Long> ids,
+                        HttpServletRequest httpRequest) {
+                Long userId = extractUserId(httpRequest);
+                requisitionService.deleteRequisitionsBulk(ids, userId);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(true, "Requisitions deleted successfully", null,
+                                                java.time.LocalDateTime.now()));
+        }
+
         @PostMapping("/{id}/submit")
-        public ResponseEntity<ApiResponse<String>> submitRequisition(@PathVariable Long id) {
-                requisitionService.submitRequisition(id);
+        public ResponseEntity<ApiResponse<String>> submitRequisition(@PathVariable Long id,
+                        HttpServletRequest httpRequest) {
+                Long userId = extractUserId(httpRequest);
+                requisitionService.submitRequisition(id, userId);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(true, "Requisition submitted for approval", null,
                                                 java.time.LocalDateTime.now()));
@@ -118,12 +134,10 @@ public class RequisitionController {
                         @RequestParam("file") MultipartFile file,
                         @RequestParam("type") String type, // payment, material, bill
                         HttpServletRequest httpRequest) {
-                // We might want to verify user permissions here akin to other methods
-                // Long userId = extractUserId(httpRequest);
-                // For now trusting service or adding check if needed.
+                Long userId = extractUserId(httpRequest);
 
                 String fileName = requisitionService.storeFile(file);
-                RequisitionDTO requisition = requisitionService.uploadFile(id, type, fileName);
+                RequisitionDTO requisition = requisitionService.uploadFile(id, userId, type, fileName);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(true, "File uploaded", requisition, java.time.LocalDateTime.now()));
         }
@@ -132,8 +146,11 @@ public class RequisitionController {
         private ExcelExportService excelExportService;
 
         @GetMapping("/export")
-        public ResponseEntity<org.springframework.core.io.Resource> exportRequisitions() throws java.io.IOException {
-                List<com.requisition.entity.Requisition> requisitions = requisitionService.getAllRequisitionsEntities();
+        public ResponseEntity<org.springframework.core.io.Resource> exportRequisitions(HttpServletRequest httpRequest)
+                        throws java.io.IOException {
+                Long userId = extractUserId(httpRequest);
+                List<com.requisition.entity.Requisition> requisitions = requisitionService
+                                .getAllRequisitionsEntities(userId);
                 java.io.ByteArrayInputStream in = excelExportService.exportRequisitions(requisitions);
 
                 org.springframework.core.io.InputStreamResource resource = new org.springframework.core.io.InputStreamResource(
@@ -142,6 +159,27 @@ public class RequisitionController {
                 return ResponseEntity.ok()
                                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
                                                 "attachment; filename=requisitions.xlsx")
+                                .contentType(org.springframework.http.MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .body(resource);
+        }
+
+        @PostMapping("/export/selected")
+        public ResponseEntity<org.springframework.core.io.Resource> exportSelectedRequisitions(
+                        @RequestBody List<Long> ids,
+                        HttpServletRequest httpRequest)
+                        throws java.io.IOException {
+                Long userId = extractUserId(httpRequest);
+                List<com.requisition.entity.Requisition> requisitions = requisitionService
+                                .getRequisitionsByIds(ids, userId);
+                java.io.ByteArrayInputStream in = excelExportService.exportRequisitions(requisitions);
+
+                org.springframework.core.io.InputStreamResource resource = new org.springframework.core.io.InputStreamResource(
+                                in);
+
+                return ResponseEntity.ok()
+                                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                                                "attachment; filename=selected_requisitions.xlsx")
                                 .contentType(org.springframework.http.MediaType.parseMediaType(
                                                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                                 .body(resource);

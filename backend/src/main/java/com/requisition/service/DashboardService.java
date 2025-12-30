@@ -22,43 +22,42 @@ public class DashboardService {
         @Autowired
         private ApprovalRepository approvalRepository;
 
-        public DashboardStatsDTO getDashboardStats(Long requisitionTypeId) {
+        public DashboardStatsDTO getDashboardStats(Organization organization, Long requisitionTypeId) {
                 RequisitionType type = typeRepository.findById(requisitionTypeId)
                                 .orElseThrow(() -> new RuntimeException("Type not found"));
 
                 DashboardStatsDTO stats = new DashboardStatsDTO();
                 stats.setDraftCount(
-                                requisitionRepository.countByTypeAndApprovalStatus(type,
-                                                Requisition.ApprovalStatus.PENDING)); // Placeholder
-                                                                                      // logic
+                                requisitionRepository.countByOrganizationAndTypeAndApprovalStatus(organization, type,
+                                                Requisition.ApprovalStatus.PENDING)); // Placeholder logic
                 stats.setPendingCount(
-                                requisitionRepository.countByTypeAndApprovalStatus(type,
+                                requisitionRepository.countByOrganizationAndTypeAndApprovalStatus(organization, type,
                                                 Requisition.ApprovalStatus.PENDING));
                 stats.setApprovedCount(
-                                requisitionRepository.countByTypeAndApprovalStatus(type,
+                                requisitionRepository.countByOrganizationAndTypeAndApprovalStatus(organization, type,
                                                 Requisition.ApprovalStatus.APPROVED));
-                stats.setPaidCount(requisitionRepository.countByTypeAndPaymentStatus(type,
+                stats.setPaidCount(requisitionRepository.countByOrganizationAndTypeAndPaymentStatus(organization, type,
                                 Requisition.PaymentStatus.DONE));
                 stats.setRejectedCount(
-                                requisitionRepository.countByTypeAndApprovalStatus(type,
+                                requisitionRepository.countByOrganizationAndTypeAndApprovalStatus(organization, type,
                                                 Requisition.ApprovalStatus.REJECTED));
-                stats.setTotalCount(requisitionRepository.countByType(type));
+                stats.setTotalCount(requisitionRepository.countByOrganizationAndType(organization, type));
 
                 return stats;
         }
 
-        public List<RequisitionCardDTO> getRequisitionsByType(Long requisitionTypeId) {
+        public List<RequisitionCardDTO> getRequisitionsByType(Organization organization, Long requisitionTypeId) {
                 RequisitionType type = typeRepository.findById(requisitionTypeId)
                                 .orElseThrow(() -> new RuntimeException("Type not found"));
 
-                return requisitionRepository.findByTypeOrderByCreatedAtDesc(type)
+                return requisitionRepository.findByOrganizationAndTypeOrderByCreatedAtDesc(organization, type)
                                 .stream()
                                 .map(this::convertToCardDTO)
                                 .collect(Collectors.toList());
         }
 
-        public RequisitionDetailDTO getRequisitionDetail(Long requisitionId) {
-                Requisition req = requisitionRepository.findById(requisitionId)
+        public RequisitionDetailDTO getRequisitionDetail(Organization organization, Long requisitionId) {
+                Requisition req = requisitionRepository.findByIdAndOrganization(requisitionId, organization)
                                 .orElseThrow(() -> new RuntimeException("Requisition not found"));
 
                 RequisitionDetailDTO detail = new RequisitionDetailDTO();
@@ -151,6 +150,7 @@ public class DashboardService {
                 card.setCreatedAt(req.getCreatedAt());
                 card.setSiteAddress(req.getSiteAddress());
                 card.setVendorName(req.getVendorName());
+                card.setMaterialDescription(req.getMaterialDescription());
                 return card;
         }
 }

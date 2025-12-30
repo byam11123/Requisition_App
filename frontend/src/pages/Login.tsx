@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, TextField, Container, Paper, Typography, Alert, Stack, InputAdornment } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 import { authAPI } from '../services/api';
-import { setUser, setError, setLoading } from '../store/authSlice';
+import { setUser, setError, setLoading, clearError } from '../store/authSlice';
 import { RootState } from '../store/store';
 
 export default function Login() {
@@ -14,6 +14,11 @@ export default function Login() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const { error, isLoading } = useSelector((state: RootState) => state.auth);
+
+    // Clear error on mount
+    useEffect(() => {
+        dispatch(clearError());
+    }, [dispatch]);
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -227,13 +227,6 @@ const ViewRequisition: React.FC = () => {
 
                         <Divider sx={{ mb: 2 }} />
 
-                        <Box mb={3}>
-                            <Typography variant="caption" color="text.secondary">Description</Typography>
-                            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                                {requisition.description}
-                            </Typography>
-                        </Box>
-
                         <Grid container spacing={2}>
                             <Grid item xs={6}>
                                 <Typography variant="caption" color="text.secondary">Amount</Typography>
@@ -243,6 +236,20 @@ const ViewRequisition: React.FC = () => {
                                 <Typography variant="caption" color="text.secondary">Created By</Typography>
                                 <Typography variant="body1">{requisition.createdByName}</Typography>
                             </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <Typography variant="caption" color="text.secondary">Material Description</Typography>
+                                <Typography variant="body1">{requisition.materialDescription || 'N/A'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={3}>
+                                <Typography variant="caption" color="text.secondary">Quantity</Typography>
+                                <Typography variant="body1">{requisition.quantity ?? '-'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={3}>
+                                <Typography variant="caption" color="text.secondary">Priority</Typography>
+                                <Typography variant="body1">{requisition.priority || 'NORMAL'}</Typography>
+                            </Grid>
+
                             <Grid item xs={12} sm={6}>
                                 <Typography variant="caption" color="text.secondary">Site Address</Typography>
                                 <Typography variant="body1">{requisition.siteAddress || 'N/A'}</Typography>
@@ -254,6 +261,13 @@ const ViewRequisition: React.FC = () => {
 
                             <Grid item xs={12}>
                                 <Divider sx={{ my: 1, borderStyle: 'dashed' }} />
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <Typography variant="caption" color="text.secondary">Additional Notes</Typography>
+                                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                                    {requisition.description || '—'}
+                                </Typography>
                             </Grid>
 
                             <Grid item xs={6} sm={4}>

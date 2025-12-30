@@ -28,6 +28,7 @@ public class OrganizationService {
         // 1. Create Organization
         Organization org = new Organization();
         org.setName(request.getOrganizationName());
+        org.setRequisitionPrefix(request.getRequisitionPrefix()); // Update prefix
         org.setContactEmail(request.getContactEmail());
         org.setContactPhone(request.getContactPhone());
         org.setAddress(request.getAddress());
@@ -82,6 +83,7 @@ public class OrganizationService {
         return new OrganizationDTO(
                 org.getId(),
                 org.getName(),
+                org.getRequisitionPrefix(),
                 org.getContactEmail(),
                 org.getContactPhone(),
                 org.getAddress(),
