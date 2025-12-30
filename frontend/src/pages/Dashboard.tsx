@@ -147,6 +147,7 @@ const Dashboard: React.FC = () => {
             filtered = filtered.filter(req =>
                 req.requestId.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 req.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                req.materialDescription?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 req.siteAddress?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 req.vendorName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 req.createdByName.toLowerCase().includes(searchQuery.toLowerCase())
