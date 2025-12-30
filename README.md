@@ -72,24 +72,24 @@ To run backend and frontend separately for development:
     - Material proof
   - Images are compressed on the client (when possible) before upload to keep files small.
 
-- **Dashboard & filtering**
+- **Dashboard & Filtering**
   - Overview stats cards for **Pending**, **Approved**, **To Pay**, and **Total** requisitions.
-  - Each card is **clickable** and acts as a quick filter for the list/table.
-  - Additional filters:
-    - Search by ID, description, site, vendor, or creator.
-    - Filter by approval status and priority.
+  - **Clickable Rows**: Select rows by clicking anywhere on them.
+  - **Search**: Improved search by **Item Name (Material Description)**, ID, Site, Vendor, or Creator.
+  - **Export Selected**: Select specific rows to export a custom Excel report, or export all current filters.
+  - **Admin Bulk Delete**: Admin-only "Delete Selected" button for efficient cleanup.
   - Responsive UI:
-    - Mobile: card-based list.
-    - Desktop: paginated table with actions.
+    - Mobile: Card-based view with **selection checkboxes**.
+    - Desktop: Paginated table with bulk actions.
 
-- **Admin bulk delete for completed requisitions**
-  - On the desktop table view, admins see a **selection checkbox** column.
-  - Header checkbox selects/unselects all visible rows on the current page.
-  - Only **COMPLETED** (and draft, if needed) requisitions are selectable for admins.
-  - When one or more rows are selected, an admin-only **"Delete Selected (N)"** button appears next to **Export Excel**.
+- **Customizable Request IDs**
+  - Organizations can set their own ID prefix (e.g., ORB, BLR).
+  - IDs follow the format `PREFIX/YY/P00001` (Year-based sequence).
+  - Sequence resets annually automatically.
 
-- **Exports & reports**
-  - From the dashboard, requisitions can be exported to an **Excel (.xlsx)** report.
+- **Exports & Reports**
+  - **Export Selected**: Dynamically generated Excel reports based on user selection.
+  - Includes company logo, header details, and full requisition data.
 
 - **Offline-friendly client** (foundation)
   - Frontend includes IndexedDB and WebSocket helpers to support offline-first and real-time updates as the app evolves.
@@ -100,7 +100,7 @@ To run backend and frontend separately for development:
 
 1. **Purchaser – Create & submit a requisition**
    - Go to **Dashboard → New Requisition**.
-   - Fill in item details, amount, site, vendor and priority.
+   - Fill in details. **Item Name** is now a primary field.
    - Save as draft or **Submit** to send for approval.
 
 2. **Manager – Review & approve/reject**
